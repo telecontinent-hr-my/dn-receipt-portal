@@ -6,10 +6,12 @@ This portal gives DN staff one place to submit their claim receipts. HR then mat
 
 | Page | Who uses it | How they sign in |
 |---|---|---|
-| `/` (staff page) | DN staff | TC ID + 6-digit PIN issued by HR |
-| `/hr.html` (HR page) | HR team | Cloudflare Access email PIN (the same login as HR Desk) |
+| https://dn-receipt-portal.hairul-izwan.workers.dev/ (staff page) | DN staff | No login. Staff enter their TC ID; only active staff on the list are accepted. Max 30 uploads per hour per network. Staff cannot see any stored receipt. |
+| https://dn-receipt-hr.hairul-izwan.workers.dev/ (HR page) | HR team | Cloudflare Access email code. Only the emails in the Access policy and in `HR_EMAILS` get in. |
 
-Staff log in with a PIN instead of Cloudflare Access because the free Access plan allows only 50 users. DN has more staff than that.
+Two workers run from this one repo and share one database (D1 `dn-receipts`) and one file bucket (R2 `dn-receipts`): `dn-receipt-portal` (deploy command `npx wrangler deploy`) and `dn-receipt-hr` (deploy command `npx wrangler deploy --env hr`). Every push to `main` redeploys both. Each receipt gets a reference number (DNR-XXXXXXXX) that staff see after upload and HR sees in the Receipts tab.
+
+To add or remove an HR user: change both the Access policy "DN Receipt HR users" (Zero Trust → Access controls → Policies) and `HR_EMAILS` under `[env.hr.vars]` in `wrangler.toml`.
 
 ---
 

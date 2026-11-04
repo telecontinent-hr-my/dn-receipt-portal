@@ -93,12 +93,11 @@
         <h2>DN staff list</h2>
         <p class="muted" style="margin-top:-6px">Only staff on this list can sign in and submit. The DN person no. links the staff to the "No" column of the DN workbook.
           Upload an Excel or CSV file with the columns <strong>TC ID, Name, DN Person No</strong> (optional: <strong>Email</strong>, <strong>Active</strong> Y/N). Existing staff are updated. No one is deleted; set Active to N instead.
-          Staff sign in with their TC ID and a 6-digit PIN. Issue the PINs here and send each staff their own PIN. HR does not see the PIN again after it is issued.</p>
+          Staff submit with their TC ID only. Only active staff on this list are accepted.</p>
         <div class="row">
           <input type="file" id="sFile" accept=".xlsx,.xls,.csv" style="max-width:320px">
           <button class="ghost" id="sTpl" type="button">Download template</button>
           <button id="sSave" disabled>Save staff list</button>
-          <button class="ghost right" id="sPins" type="button">Issue PINs to staff without PIN</button>
         </div>
         <div id="sMsg" class="msg hidden"></div>
         <div class="tablewrap" style="margin-top:12px;max-height:60vh"><table id="sT"></table></div>
@@ -116,6 +115,7 @@
 <script src="/common.js"></script>
 <script src="/match.js"></script>
 <script>
+const refOf = (id) => 'DNR-' + id.replace(/-/g, '').slice(0, 8).toUpperCase();
 let ME, STAFF = [], WB = null, RESULT = null, RCPTS = [], STAFF_PREVIEW = null;
 const sev = { Action: 'err', Check: 'warn', OK: 'ok' };
 
@@ -245,8 +245,8 @@ $('#exp').onclick = () => {
   const head = ['Staff', 'TC ID', 'DN Person No', 'Category', 'DN approved (RM)', 'Receipts (RM)', 'Difference (RM)', 'Supported (RM)', 'Result', 'Level', 'What to do', 'Details', 'Receipts count', 'Not checked', 'DN source cells'];
   const line = (x) => [x.name, x.tc.startsWith('DN#') ? '' : x.tc, x.personNo, x.category, n(x.dn), n(x.rc), n(x.rc - x.dn), n(x.supported), x.status, x.severity, advice(x), [...x.issues, x.note].filter(Boolean).join(' | '), x.receipts.length, x.pending, x.dnRefs.join(', ')];
   const rc = r.receipts.filter(z => z.claim_month === r.month);
-  const rHead = ['Staff', 'TC ID', 'Category', 'Receipt date', 'Amount (RM)', 'Shop / provider', 'Receipt no.', 'Status', 'HR note', 'Channel', 'Submitted by', 'Submitted at', 'File', 'Remark'];
-  const rRow = (z) => [z.staff_name || '', z.tc_id, z.category, z.expense_date, n(z.amount_sen), z.merchant || '', z.receipt_no || '', z.status, z.hr_note || '', z.channel, z.submitted_by, z.submitted_at, z.file_name, z.remark || ''];
+  const rHead = ['Ref', 'Staff', 'TC ID', 'Category', 'Receipt date', 'Amount (RM)', 'Shop / provider', 'Receipt no.', 'Status', 'HR note', 'Channel', 'Submitted by', 'Submitted at', 'File', 'Remark'];
+  const rRow = (z) => [refOf(z.id), z.staff_name || '', z.tc_id, z.category, z.expense_date, n(z.amount_sen), z.merchant || '', z.receipt_no || '', z.status, z.hr_note || '', z.channel, z.submitted_by, z.submitted_at, z.file_name, z.remark || ''];
   const wb = XLSX.utils.book_new();
   const add = (name, aoa, money = []) => {
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -261,7 +261,7 @@ $('#exp').onclick = () => {
   add('Summary', sum);
   add('To act on', [head, ...ex.map(line), tot(ex)], [4, 5, 6, 7]);
   add('All lines', [head, ...r.lines.map(line), tot(r.lines)], [4, 5, 6, 7]);
-  add('Receipts', [rHead, ...rc.map(rRow)], [4]);
+  add('Receipts', [rHead, ...rc.map(rRow)], [5]);
   XLSX.writeFile(wb, `DN Receipt Check ${r.month}.xlsx`);
 };
 
@@ -274,16 +274,16 @@ async function loadReceipts() {
 function drawReceipts() {
   const st = $('#rStatus').value, q = $('#rQ').value.trim().toLowerCase();
   const rows = RCPTS.filter(r => (!st || r.status === st) && (!q || `${r.staff_name} ${r.tc_id}`.toLowerCase().includes(q)));
-  $('#rT').innerHTML = `<thead><tr><th>Staff</th><th>TC ID</th><th>Month</th><th>Category</th><th>Receipt date</th><th class="n">Amount</th><th>Shop / no.</th><th>Status</th><th>Sent by</th><th></th></tr></thead><tbody>` +
+  $('#rT').innerHTML = `<thead><tr><th>Ref</th><th>Staff</th><th>TC ID</th><th>Month</th><th>Category</th><th>Receipt date</th><th class="n">Amount</th><th>Shop / no.</th><th>Status</th><th>Sent by</th><th></th></tr></thead><tbody>` +
     (rows.length ? rows.map(r => `<tr>
-      <td>${esc(r.staff_name || '')}</td><td>${esc(r.tc_id)}</td><td>${monthLabel(r.claim_month)}</td><td>${esc(r.category)}</td><td>${fmtDate(r.expense_date)}</td>
+      <td style="white-space:nowrap">${refOf(r.id)}</td><td>${esc(r.staff_name || '')}</td><td>${esc(r.tc_id)}</td><td>${monthLabel(r.claim_month)}</td><td>${esc(r.category)}</td><td>${fmtDate(r.expense_date)}</td>
       <td class="n">${rm(r.amount_sen)}</td><td>${esc(r.merchant || '')}${r.receipt_no ? '<div class="muted">' + esc(r.receipt_no) + '</div>' : ''}${r.remark ? '<div class="muted">' + esc(r.remark) + '</div>' : ''}</td>
       <td><span class="chip ${r.status}">${r.status}</span>${r.hr_note ? '<div class="muted">' + esc(r.hr_note) + '</div>' : ''}</td>
       <td>${esc(r.channel)}<div class="muted">${esc(r.submitted_by)}</div></td>
       <td style="white-space:nowrap"><button class="small ghost" data-view="${r.id}" data-t="${esc((r.staff_name || r.tc_id) + ' · ' + r.category)}">View</button>
         ${r.status !== 'Withdrawn' ? `<button class="small" data-acc="${r.id}" ${r.status === 'Accepted' ? 'disabled' : ''}>Accept</button>
         <button class="small danger" data-rej="${r.id}" ${r.status === 'Rejected' ? 'disabled' : ''}>Reject</button>` : ''}</td>
-    </tr>`).join('') : '<tr><td colspan="10" class="muted">No receipts.</td></tr>') + '</tbody>';
+    </tr>`).join('') : '<tr><td colspan="11" class="muted">No receipts.</td></tr>') + '</tbody>';
   $$('#rT [data-view]').forEach(b => b.onclick = () => openFile(b.dataset.view, b.dataset.t));
   $$('#rT [data-acc]').forEach(b => b.onclick = () => review(b.dataset.acc, 'Accepted', ''));
   $$('#rT [data-rej]').forEach(b => b.onclick = () => {
@@ -315,30 +315,11 @@ $('#af').onsubmit = async (ev) => {
 
 // ---------- staff list ----------
 function renderStaff(list, preview) {
-  $('#sT').innerHTML = `<thead><tr><th>TC ID</th><th>Name</th><th>DN Person No</th><th>Email</th><th>Active</th>${preview ? '' : '<th>PIN</th>'}</tr></thead><tbody>` +
-    (list.length ? list.map(s => `<tr><td>${esc(s.tc_id)}</td><td>${esc(s.name)}</td><td>${esc(s.dn_person_no || '')}</td><td>${esc(s.email || '')}</td><td>${s.active === 0 ? 'No' : 'Yes'}</td>
-      ${preview ? '' : `<td style="white-space:nowrap">${s.has_pin ? `Issued ${fmtDate(s.pin_set_at)}` : '<span class="chip warn">No PIN</span>'}${s.locked_until && s.locked_until > new Date().toISOString() ? ' <span class="chip err">Locked</span>' : ''}
-        <button class="small ghost" data-pin="${esc(s.tc_id)}">${s.has_pin ? 'Reset PIN' : 'Issue PIN'}</button></td>`}</tr>`).join('')
+  $('#sT').innerHTML = `<thead><tr><th>TC ID</th><th>Name</th><th>DN Person No</th><th>Email</th><th>Active</th></tr></thead><tbody>` +
+    (list.length ? list.map(s => `<tr><td>${esc(s.tc_id)}</td><td>${esc(s.name)}</td><td>${esc(s.dn_person_no || '')}</td><td>${esc(s.email || '')}</td><td>${s.active === 0 ? 'No' : 'Yes'}</td></tr>`).join('')
       : '<tr><td colspan="6" class="muted">No staff yet. Upload the staff list.</td></tr>') + '</tbody>';
   if (preview) showMsg($('#sMsg'), 'info', `${list.length} rows read. Check the list below, then click Save staff list.`);
-  $$('#sT [data-pin]').forEach(b => b.onclick = async () => {
-    const st = STAFF.find(x => x.tc_id === b.dataset.pin);
-    if (st.has_pin && !confirm(`Reset the PIN for ${st.name}? The old PIN will stop working.`)) return;
-    try { const r = await api(`/api/staff/${st.tc_id}/pin`, { method: 'POST' });
-      showMsg($('#sMsg'), 'ok', `PIN for ${st.name} (${st.tc_id}): ${r.pin}. Send it to the staff now. It will not be shown again.`); await loadStaff(); }
-    catch (e) { showMsg($('#sMsg'), 'err', e.message); }
-  });
 }
-$('#sPins').onclick = async () => {
-  const todo = STAFF.filter(s => s.active && !s.has_pin);
-  if (!todo.length) { showMsg($('#sMsg'), 'info', 'All active staff already have a PIN.'); return; }
-  if (!confirm(`Issue PINs to ${todo.length} staff? You will get an Excel file with the PINs. Keep it private and delete it after sending.`)) return;
-  const out = [['TC ID', 'Name', 'PIN', 'Portal link']];
-  for (const s of todo) { const r = await api(`/api/staff/${s.tc_id}/pin`, { method: 'POST' }); out.push([s.tc_id, s.name, r.pin, location.origin + '/']); }
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(out), 'PINs');
-  XLSX.writeFile(wb, `DN portal PINs ${todayMY()}.xlsx`);
-  showMsg($('#sMsg'), 'ok', `${todo.length} PINs issued. File downloaded.`); await loadStaff();
-};
 $('#sTpl').onclick = () => {
   const ws = XLSX.utils.aoa_to_sheet([['TC ID', 'Name', 'DN Person No', 'Email', 'Active'], ['TC4736', 'Ahmad Hafiz Bin Jailani', '10027818', 'name@example.com', 'Y']]);
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Staff'); XLSX.writeFile(wb, 'DN staff list template.xlsx');

@@ -27,6 +27,12 @@ export default {
       if (url.pathname === '/api/logout' && request.method === 'POST') return new Response('{"ok":true}', { headers: {
         'content-type': 'application/json', 'set-cookie': `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` } });
       const user = await identify(request, env);
+      // Open submission (staff worker only): TC ID check and receipt upload need no login.
+      if (env.ROLE !== 'hr' && !user?.isHR) {
+        if (url.pathname === '/api/lookup' && request.method === 'POST') return await openLookup(request, env);
+        if (url.pathname === '/api/receipts' && request.method === 'POST') return await createReceipt(request, env, null);
+        if (url.pathname === '/api/me' && request.method === 'GET' && !user) return json({ open: true, categories: CATEGORIES });
+      }
       if (!user) return json({ error: 'Not signed in. Open the portal link again.' }, 401);
       return await route(request, env, url, user);
     } catch (e) {
@@ -287,12 +293,20 @@ async function createReceipt(request, env, user) {
   const form = await request.formData();
   const f = (k) => String(form.get(k) ?? '').trim();
 
-  let tc = user.staff?.tc_id;
-  let channel = 'Staff portal';
-  if (user.isHR && f('tc_id')) { tc = f('tc_id').toUpperCase(); channel = 'HR on behalf'; }
-  if (!tc) throw new HttpError(403, 'Your email is not on the DN staff list. Please contact HR.');
-  const staff = await env.DB.prepare('SELECT * FROM staff WHERE tc_id=?').bind(tc).first();
-  if (!staff) bad(`Staff ID ${tc} is not on the staff list.`);
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  let tc, channel, actor;
+  if (!user) {                                   // open staff form
+    tc = normTc(f('tc_id')); channel = 'Staff portal'; actor = `${tc || '?'} (staff form)`;
+    if (!tc) bad('Enter your staff ID, e.g. TC4736.');
+    await rateLimit(env, ip);
+  } else if (user.isHR) {
+    tc = normTc(f('tc_id')) || user.staff?.tc_id; channel = 'HR on behalf'; actor = user.email;
+  } else {
+    tc = user.staff?.tc_id; channel = 'Staff portal'; actor = user.email;
+  }
+  if (!tc) bad('Enter the staff ID.');
+  const staff = await env.DB.prepare('SELECT * FROM staff WHERE tc_id=? AND active=1').bind(tc).first();
+  if (!staff) bad(`Staff ID ${tc} is not on the DN staff list. Please check the ID or contact HR.`);
 
   const month = f('claim_month');
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) bad('Choose the claim month.');
@@ -318,7 +332,9 @@ async function createReceipt(request, env, user) {
 
   // Hard stop: the same file is already on record and not rejected/withdrawn.
   const dup = await env.DB.prepare("SELECT id, tc_id, claim_month, category, submitted_at FROM receipts WHERE file_hash=? AND status IN ('Submitted','Accepted')").bind(hash).first();
-  if (dup) bad(`This same file was already submitted on ${dup.submitted_at.slice(0, 10)} (${dup.tc_id}, ${dup.category}, claim month ${dup.claim_month}). It is not accepted again.`);
+  if (dup) bad(user?.isHR
+    ? `This same file was already submitted on ${dup.submitted_at.slice(0, 10)} (${dup.tc_id}, ${dup.category}, claim month ${dup.claim_month}). It is not accepted again.`
+    : `This same file was already submitted on ${dup.submitted_at.slice(0, 10)}. It is not accepted again. If you think this is wrong, contact HR.`);
 
   const id = crypto.randomUUID();
   const safeName = (file.name || 'receipt').replace(/[^\w.\- ]/g, '_').slice(0, 120);
@@ -328,7 +344,33 @@ async function createReceipt(request, env, user) {
       file_key,file_name,file_type,file_size,file_hash,channel,submitted_by,submitted_at,status)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'Submitted')`)
     .bind(id, tc, month, category, date, sen, f('merchant').slice(0, 120) || null, f('receipt_no').slice(0, 60) || null,
-      f('remark').slice(0, 300) || null, key, safeName, type, file.size, hash, channel, user.email, now()).run();
-  await audit(env, user.email, 'submit', id, { tc, month, category, sen, channel });
-  return json({ ok: true, id });
+      f('remark').slice(0, 300) || null, key, safeName, type, file.size, hash, channel, actor, now()).run();
+  await audit(env, actor, 'submit', id, { tc, month, category, sen, channel, ip });
+  return json({ ok: true, id, ref: refOf(id), name: staff.name });
+}
+
+const normTc = (v) => { const t = String(v || '').replace(/\s+/g, '').toUpperCase(); return /^TC\d{3,6}$/.test(t) ? t : ''; };
+const refOf = (id) => 'DNR-' + id.replace(/-/g, '').slice(0, 8).toUpperCase();
+
+// At most 30 uploads per hour from one network address (open form only)
+async function rateLimit(env, ip) {
+  const since = new Date(Date.now() - 3600_000).toISOString();
+  const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action='submit' AND at>? AND detail LIKE ?")
+    .bind(since, `%"ip":"${ip.replace(/[%_"]/g, '')}"%`).first();
+  if ((r?.n || 0) >= 30) throw new HttpError(429, 'Too many uploads from this network in the last hour. Please try again later.');
+}
+
+async function openLookup(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const tc = normTc(body.tc_id);
+  if (!tc) return json({ error: 'Enter your staff ID, e.g. TC4736.' }, 400);
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const since = new Date(Date.now() - 3600_000).toISOString();
+  const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action='lookup' AND at>? AND detail LIKE ?")
+    .bind(since, `%"ip":"${ip.replace(/[%_"]/g, '')}"%`).first();
+  if ((r?.n || 0) >= 60) return json({ error: 'Too many tries. Please wait and try again.' }, 429);
+  await audit(env, tc, 'lookup', tc, { ip });
+  const s = await env.DB.prepare('SELECT tc_id, name FROM staff WHERE tc_id=? AND active=1').bind(tc).first();
+  if (!s) return json({ error: `Staff ID ${tc} is not on the DN staff list. Please check the ID or contact HR.` }, 404);
+  return json({ tc_id: s.tc_id, name: s.name });
 }

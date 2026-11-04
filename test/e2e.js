@@ -10,19 +10,14 @@ const B = 'http://localhost:8787', OUT = path.join(__dirname, 'out'), RC = path.
   await p.click('[data-tab=staff]');
   await p.setInputFiles('#sFile', path.join(__dirname, 'staff.xlsx'));
   await p.click('#sSave'); await p.waitForSelector('#sMsg.ok'); console.log('staff:', await p.textContent('#sMsg'));
-  await p.click('#sT [data-pin="TC4737"]'); await p.waitForFunction(() => /PIN for/.test(document.querySelector('#sMsg').textContent));
-  const pinMsg = await p.textContent('#sMsg'); const PIN = pinMsg.match(/: (\d{6})\./)[1]; console.log('pin issued', PIN.length);
   await p.screenshot({ path: OUT + '/hr-staff.png' });
 
   // staff submits on phone
   const st = await br.newContext({ ...require('playwright').devices['iPhone 13'], extraHTTPHeaders: { 'x-dev-user': 'none' } });
   const s = await st.newPage(); s.on('dialog', d => d.accept());
-  await s.goto(B + '/'); await s.waitForSelector('#login:not(.hidden)');
-  await s.fill('#l_tc', 'tc4737'); await s.fill('#l_pin', '000000'); await s.click('#lf button');
-  await s.waitForSelector('#lmsg:not(.hidden)'); console.log('wrong pin:', await s.textContent('#lmsg'));
-  await s.screenshot({ path: OUT + '/staff-login.png' });
-  await s.fill('#l_pin', PIN); await s.click('#lf button');
-  await s.waitForSelector('#app:not(.hidden)'); console.log('logged in as', await s.textContent('#who'));
+  await s.goto(B + '/');
+  await s.fill('#tc', 'TC9999'); await s.click('#idf button'); await s.waitForSelector('#idmsg:not(.hidden)'); console.log('bad id:', await s.textContent('#idmsg'));
+  await s.fill('#tc', 'tc4737'); await s.click('#idf button'); await s.waitForSelector('#s2:not(.hidden)'); console.log('who:', await s.textContent('#who'));
   const sub = async (cat, date, amt, file) => {
     await s.selectOption('#claim_month', '2026-10'); await s.selectOption('#category', cat);
     await s.fill('#expense_date', date); await s.fill('#amount', amt); await s.setInputFiles('#file', path.join(RC, file));
