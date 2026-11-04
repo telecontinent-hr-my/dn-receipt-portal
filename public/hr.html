@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DN Receipt Check (HR)</title>
-<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/app.css?v=20261104b">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -112,9 +112,9 @@
 </main>
 
 <script src="/vendor/xlsx.full.min.js"></script>
-<script src="/demo-mock.js"></script>
-<script src="/common.js"></script>
-<script src="/match.js"></script>
+<script src="/demo-mock.js?v=20261104b"></script>
+<script src="/common.js?v=20261104b"></script>
+<script src="/match.js?v=20261104b"></script>
 <script>
 const refOf = (id) => 'DNR-' + id.replace(/-/g, '').slice(0, 8).toUpperCase();
 let ME, STAFF = [], WB = null, RESULT = null, RCPTS = [], STAFF_PREVIEW = null;

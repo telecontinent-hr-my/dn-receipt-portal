@@ -26,6 +26,7 @@
     'Streamyx / Internet': 'Phone & Internet', 'Handphone': 'Phone & Internet'
   };
   const groupOf = (c) => GROUPS[c] || c;
+  const dmy = (d) => { const [y, m, dd] = String(d).slice(0, 10).split('-'); return `${dd}/${m}/${y}`; };
 
   function sheetMonth(name) {
     const m = String(name).toLowerCase().match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-_]*'?(\d{2}|\d{4})\b/);
@@ -118,8 +119,8 @@
     const addFlag = (r, f) => { if (!flags.has(r.id)) flags.set(r.id, []); flags.get(r.id).push(f); };
     for (const r of monthRcpts) {
       if (r.expense_date) {
-        if (r.expense_date > monthEnd) addFlag(r, `Receipt date ${r.expense_date} is after the claim month.`);
-        if (r.expense_date < oldLimit) addFlag(r, `Receipt date ${r.expense_date} is more than ${oldMonths} months before the claim month.`);
+        if (r.expense_date > monthEnd) addFlag(r, `Receipt date ${dmy(r.expense_date)} is after the claim month (ends ${dmy(monthEnd)}).`);
+        if (r.expense_date < oldLimit) addFlag(r, `Receipt date ${dmy(r.expense_date)} is before ${dmy(oldLimit)} (more than ${oldMonths} months before the claim month).`);
         const twins = active.filter(o => o.id !== r.id && o.tc_id === r.tc_id && o.amount_sen === r.amount_sen && o.expense_date === r.expense_date);
         if (twins.length) addFlag(r, `Possible duplicate: same date and amount also in ${twins.map(t => `${t.category} (${t.claim_month})`).join(', ')}.`);
       } else {
