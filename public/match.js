@@ -117,10 +117,15 @@
     const flags = new Map();
     const addFlag = (r, f) => { if (!flags.has(r.id)) flags.set(r.id, []); flags.get(r.id).push(f); };
     for (const r of monthRcpts) {
-      if (r.expense_date > monthEnd) addFlag(r, `Receipt date ${r.expense_date} is after the claim month.`);
-      if (r.expense_date < oldLimit) addFlag(r, `Receipt date ${r.expense_date} is more than ${oldMonths} months before the claim month.`);
-      const twins = active.filter(o => o.id !== r.id && o.tc_id === r.tc_id && o.amount_sen === r.amount_sen && o.expense_date === r.expense_date);
-      if (twins.length) addFlag(r, `Possible duplicate: same date and amount also in ${twins.map(t => `${t.category} (${t.claim_month})`).join(', ')}.`);
+      if (r.expense_date) {
+        if (r.expense_date > monthEnd) addFlag(r, `Receipt date ${r.expense_date} is after the claim month.`);
+        if (r.expense_date < oldLimit) addFlag(r, `Receipt date ${r.expense_date} is more than ${oldMonths} months before the claim month.`);
+        const twins = active.filter(o => o.id !== r.id && o.tc_id === r.tc_id && o.amount_sen === r.amount_sen && o.expense_date === r.expense_date);
+        if (twins.length) addFlag(r, `Possible duplicate: same date and amount also in ${twins.map(t => `${t.category} (${t.claim_month})`).join(', ')}.`);
+      } else {
+        const twins = active.filter(o => o.id !== r.id && o.tc_id === r.tc_id && o.amount_sen === r.amount_sen && o.category === r.category);
+        if (twins.length) addFlag(r, `Possible duplicate: same category and amount also sent for ${twins.map(t => t.claim_month).join(', ')}.`);
+      }
       if (r.receipt_no) {
         const same = active.filter(o => o.id !== r.id && o.receipt_no && o.receipt_no.trim().toLowerCase() === r.receipt_no.trim().toLowerCase());
         if (same.length) addFlag(r, `Same receipt no. "${r.receipt_no}" also used by ${same.map(t => `${t.tc_id} ${t.category} (${t.claim_month})`).join(', ')}.`);

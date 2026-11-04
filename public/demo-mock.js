@@ -27,8 +27,8 @@
     });
     const receipts = [
       R('TC9001', 'Medical', 12000, '2026-10-03', 'Accepted', { merchant: 'Klinik Demo' }),
-      R('TC9001', 'Toll', 4560, '2026-10-08'),
-      R('TC9001', 'Toll', 4560, '2026-10-08'),                       // possible duplicate
+      Object.assign(R('TC9001', 'Toll', 4560, ''), { photos: 3 }),   // RM45.60 made of 3 receipts
+      Object.assign(R('TC9001', 'Toll', 4560, ''), { photos: 3 }),   // sent twice: possible duplicate
       R('TC9002', 'Car Maintenance', 30000, '2026-10-10', 'Submitted', { merchant: 'Bengkel Demo' }),
       R('TC9002', 'Mileage', 21000, '2026-10-12'),
       R('TC9004', 'Parking', 2000, '2026-10-05'),
@@ -83,19 +83,25 @@
       if (!CATS.includes(f('category'))) return err('Choose a claim category.');
       const amt = f('amount').replace(/,/g, '');
       if (!/^\d+(\.\d{1,2})?$/.test(amt) || +amt <= 0) return err('Enter the receipt amount, e.g. 45.60');
-      const file = fd.get('file');
-      if (!file || typeof file === 'string') return err('Attach the receipt photo or PDF.');
-      const buf = await file.arrayBuffer();
-      const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map(b => b.toString(16).padStart(2, '0')).join('');
-      const dup = S.receipts.find(r => r.file_hash === hash && ['Submitted', 'Accepted'].includes(r.status));
-      if (dup) return err(`This same file was already submitted on ${dup.submitted_at.slice(0, 10)}. It is not accepted again.`);
+      const list = fd.getAll('file').filter(x => x && typeof x !== 'string');
+      if (!list.length) return err('Attach at least one receipt photo or PDF.');
+      const hashes = [];
+      for (const file of list) {
+        const buf = await file.arrayBuffer();
+        const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map(b => b.toString(16).padStart(2, '0')).join('');
+        if (hashes.includes(hash)) return err(`The same photo is attached twice ("${file.name}").`);
+        const dup = S.receipts.find(r => (r.hashes || [r.file_hash]).includes(hash) && ['Submitted', 'Accepted'].includes(r.status));
+        if (dup) return err(`"${file.name}" was already submitted on ${dup.submitted_at.slice(0, 10)}. It is not accepted again.`);
+        hashes.push(hash);
+      }
+      const file = list[0];
       const [ri, rd = ''] = amt.split('.');
       const r = { id: uid(), tc_id: tc, claim_month: f('claim_month'), category: f('category'), expense_date: f('expense_date'),
         amount_sen: +ri * 100 + +((rd + '00').slice(0, 2)), merchant: f('merchant') || null, receipt_no: f('receipt_no') || null,
-        remark: f('remark') || null, file_name: file.name, file_type: file.type, file_hash: hash,
+        remark: f('remark') || null, file_name: file.name, file_type: file.type, file_hash: hashes[0], hashes, photos: list.length,
         channel: isHrPage ? 'HR on behalf' : 'Staff portal', submitted_by: isHrPage ? 'demo.hr@example.com' : `${tc} (staff form)`,
         submitted_at: now(), status: 'Submitted', hr_note: null };
-      files[r.id] = URL.createObjectURL(file);
+      files[r.id] = list.map(x => URL.createObjectURL(x));
       S.receipts.push(r); log(r.submitted_by, 'submit', r.id, { tc, category: r.category }); save();
       return ok({ ok: true, id: r.id, ref: refOf(r.id), name: staffName(tc) });
     }
@@ -131,9 +137,9 @@
     return err('Not available in the demo.', 404);
   };
 
-  window.demoFileUrl = (id) => {
+  window.demoFileUrl = (id, n = 1) => {
     const r = S.receipts.find(x => x.id === id);
-    return files[id] || (r ? svgReceipt(r) : '');
+    return (files[id] && files[id][n - 1]) || (r ? svgReceipt(r) : '');
   };
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -141,7 +147,7 @@
     b.style.cssText = 'background:#fdf2dc;color:#7a4a00;padding:10px 16px;font-size:14px;border-bottom:1px solid #f0d9a8';
     b.innerHTML = `<div class="wrap"><strong>DEMO</strong> · Made-up staff and receipts. Nothing here is saved to the real system.
       ${isHrPage ? 'Try: download the <a href="/demo/DN%20demo%20workbook.xlsx">sample DN workbook</a>, upload it in Match &amp; validate, then click Match receipts.'
-                 : 'Use staff ID <strong>TC9001</strong> to <strong>TC9006</strong>.'}
+                 : 'Use staff ID <strong>TC9001</strong> to <strong>TC9006</strong>. Any photo works.'}
       · <a href="${isHrPage ? '/demo/' : '/demo/hr'}">${isHrPage ? 'Open the staff page' : 'Open the HR page'}</a>
       · <a href="#" onclick="demoReset();return false">Reset demo</a></div>`;
     document.body.insertBefore(b, document.body.firstChild);

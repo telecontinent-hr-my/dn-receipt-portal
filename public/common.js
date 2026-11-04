@@ -37,19 +37,25 @@ function recentMonths(n = 12) {
 }
 const todayMY = () => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
 
-function openFile(id, title) {
+function openFile(id, title, count = 1) {
   let dlg = $('#fileDlg');
   if (!dlg) {
     dlg = document.createElement('dialog'); dlg.id = 'fileDlg';
-    dlg.innerHTML = '<div class="head"><strong class="t"></strong><a class="btn small ghost right" target="_blank" rel="noopener">Open in new tab</a><button class="small ghost" type="button">Close</button></div><div class="body"></div>';
+    dlg.innerHTML = '<div class="head"><strong class="t"></strong><span class="pn row"></span><a class="btn small ghost right" target="_blank" rel="noopener">Open in new tab</a><button class="small ghost cl" type="button">Close</button></div><div class="body"></div>';
     document.body.appendChild(dlg);
-    dlg.querySelector('button').onclick = () => dlg.close();
+    dlg.querySelector('.cl').onclick = () => dlg.close();
     dlg.addEventListener('close', () => { dlg.querySelector('.body').innerHTML = ''; });
   }
+  const show = (n) => {
+    const src = window.DEMO ? window.demoFileUrl(id, n) : `/api/file/${encodeURIComponent(id)}/${n}`;
+    dlg.querySelector('a').href = src;
+    dlg.querySelector('.body').innerHTML = `<iframe src="${src}" title="Receipt"></iframe>`;
+    dlg.querySelectorAll('.pn button').forEach(b => b.classList.toggle('ghost', +b.dataset.n !== n));
+  };
   dlg.querySelector('.t').textContent = title || 'Receipt';
-  const src = window.DEMO ? window.demoFileUrl(id) : `/api/file/${encodeURIComponent(id)}`;
-  dlg.querySelector('a').href = src;
-  dlg.querySelector('.body').innerHTML = `<iframe src="${src}" title="Receipt"></iframe>`;
+  dlg.querySelector('.pn').innerHTML = count > 1 ? Array.from({ length: count }, (_, i) => `<button class="small" type="button" data-n="${i + 1}">${i + 1}</button>`).join('') : '';
+  dlg.querySelectorAll('.pn button').forEach(b => b.onclick = () => show(+b.dataset.n));
+  show(1);
   dlg.showModal();
 }
 

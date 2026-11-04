@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DN Receipt Submission</title>
 <link rel="stylesheet" href="/app.css">
+<style>
+  .photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .ph{position:relative;width:84px;height:84px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#f0f3f7;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);text-align:center}
+  .ph img{width:100%;height:100%;object-fit:cover}
+  .ph button{position:absolute;top:2px;right:2px;padding:0 6px;font-size:13px;line-height:20px;border-radius:10px;background:#fff;color:var(--err);border-color:var(--err)}
+  .addph{width:84px;height:84px;border:2px dashed #9fb3cc;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--brand);font-weight:600;font-size:13px;cursor:pointer;background:#fff}
+  .addph span{font-size:26px;line-height:26px}
+  details summary{cursor:pointer;color:var(--brand);font-weight:600;margin-top:12px}
+  .big{font-size:18px}
+</style>
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -16,42 +26,51 @@
   <section id="s1" class="card" style="max-width:520px;margin:16px auto">
     <h2>Your staff ID</h2>
     <form id="idf" novalidate>
-      <label for="tc">Staff ID</label>
-      <input id="tc" placeholder="e.g. TC4736" autocomplete="off" autocapitalize="characters" inputmode="text">
+      <input id="tc" class="big" placeholder="e.g. TC4736" autocomplete="off" autocapitalize="characters">
       <div id="idmsg" class="msg hidden"></div>
       <button type="submit" style="margin-top:12px;width:100%">Next</button>
     </form>
   </section>
 
-  <!-- Step 2: receipt -->
-  <section id="s2" class="card hidden" style="max-width:720px;margin:16px auto">
+  <!-- Step 2: claim -->
+  <section id="s2" class="card hidden" style="max-width:640px;margin:16px auto">
     <div class="msg info" id="who"></div>
-    <h2>Submit a receipt</h2>
-    <p class="muted" style="margin-top:-6px">One receipt per submission. Use the claim month and category of your claim in the DN system.</p>
+    <h2>Send receipts for one claim</h2>
+    <p class="muted" style="margin-top:-6px">One claim = one category. If the claim has many receipts (e.g. Toll RM60 = 3 receipts of RM20), enter the <strong>total</strong> and add all the photos.</p>
     <form id="f" novalidate>
-      <input type="hidden" name="tc_id" id="tc_id">
       <div class="grid">
-        <div><label class="req" for="claim_month">Claim month</label><select id="claim_month" name="claim_month"></select></div>
-        <div><label class="req" for="category">Claim category</label><select id="category" name="category"><option value="">Choose…</option></select></div>
-        <div><label class="req" for="expense_date">Date on receipt</label><input type="date" id="expense_date" name="expense_date"></div>
-        <div><label class="req" for="amount">Receipt amount (RM)</label><input id="amount" name="amount" inputmode="decimal" placeholder="e.g. 45.60" autocomplete="off"></div>
-        <div><label for="merchant">Shop / clinic / provider</label><input id="merchant" name="merchant" maxlength="120"></div>
-        <div><label for="receipt_no">Receipt or invoice no.</label><input id="receipt_no" name="receipt_no" maxlength="60"></div>
+        <div><label class="req" for="category">Category</label><select id="category" class="big"><option value="">Choose…</option></select></div>
+        <div><label class="req" for="amount">Total amount (RM)</label><input id="amount" class="big" inputmode="decimal" placeholder="e.g. 60.00" autocomplete="off"></div>
       </div>
-      <div style="margin-top:12px"><label for="remark">Remark</label><textarea id="remark" name="remark" maxlength="300" placeholder="Optional, e.g. client site visit Shah Alam"></textarea></div>
-      <div style="margin-top:12px"><label class="req" for="file">Receipt photo or PDF</label><input type="file" id="file" name="file" accept="image/*,application/pdf"></div>
+      <label class="req" style="margin-top:12px">Receipt photos or PDF</label>
+      <div class="photos" id="photos">
+        <label class="addph" for="file"><span>+</span>Add photo</label>
+      </div>
+      <input type="file" id="file" accept="image/*,application/pdf" multiple style="display:none">
+
+      <div style="margin-top:12px"><label for="claim_month">Claim month</label><select id="claim_month" style="max-width:220px"></select></div>
+
+      <details>
+        <summary>More details (optional)</summary>
+        <div class="grid" style="margin-top:8px">
+          <div><label for="expense_date">Date on receipt</label><input type="date" id="expense_date"></div>
+          <div><label for="merchant">Shop / clinic</label><input id="merchant" maxlength="120"></div>
+          <div><label for="receipt_no">Receipt no.</label><input id="receipt_no" maxlength="60"></div>
+        </div>
+        <div style="margin-top:8px"><label for="remark">Remark</label><input id="remark" maxlength="300"></div>
+      </details>
+
       <div id="fmsg" class="msg hidden"></div>
-      <div class="row" style="margin-top:12px">
-        <button id="sub" type="submit">Submit receipt</button>
-        <button id="notme" type="button" class="ghost">Not me / change ID</button>
+      <div class="row" style="margin-top:14px">
+        <button id="sub" type="submit" class="big" style="flex:1">Send</button>
+        <button id="notme" type="button" class="ghost">Not me</button>
       </div>
     </form>
   </section>
 
-  <!-- Receipts sent in this visit -->
-  <section id="s3" class="card hidden" style="max-width:720px;margin:16px auto">
+  <section id="s3" class="card hidden" style="max-width:640px;margin:16px auto">
     <h2>Sent in this visit</h2>
-    <p class="muted" style="margin-top:-6px">Keep the reference number. HR checks every receipt before payment.</p>
+    <p class="muted" style="margin-top:-6px">Keep the reference number. HR checks every claim before payment.</p>
     <div id="sent" class="list"></div>
   </section>
 </main>
@@ -59,12 +78,13 @@
 <script src="/demo-mock.js"></script>
 <script src="/common.js"></script>
 <script>
-let CATS = [], WHO = null; const SENT = [];
+let WHO = null; const SENT = []; let FILES = [];
 
 async function init() {
-  try { CATS = (await api('/api/me')).categories || []; } catch { /* page still works; server re-checks */ }
-  for (const m of recentMonths(12)) $('#claim_month').add(new Option(monthLabel(m), m));
-  for (const c of CATS) $('#category').add(new Option(c, c));
+  let cats = [];
+  try { cats = (await api('/api/me')).categories || []; } catch {}
+  for (const m of recentMonths(6)) $('#claim_month').add(new Option(monthLabel(m), m));
+  for (const c of cats) $('#category').add(new Option(c, c));
   $('#expense_date').max = todayMY();
   try { const last = localStorage.getItem('dnrp_tc'); if (last) $('#tc').value = last; } catch {}
 }
@@ -75,45 +95,62 @@ $('#idf').onsubmit = async (ev) => {
   try {
     WHO = await api('/api/lookup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tc_id: $('#tc').value }) });
     try { localStorage.setItem('dnrp_tc', WHO.tc_id); } catch {}
-    $('#tc_id').value = WHO.tc_id;
-    $('#who').textContent = `Submitting as ${WHO.name} (${WHO.tc_id}). If this is not you, tap "Not me".`;
+    $('#who').textContent = `Sending as ${WHO.name} (${WHO.tc_id}).`;
     $('#s1').classList.add('hidden'); $('#s2').classList.remove('hidden');
   } catch (e) { showMsg(msg, 'err', e.message); }
 };
-
 $('#notme').onclick = () => {
   WHO = null; $('#tc').value = ''; try { localStorage.removeItem('dnrp_tc'); } catch {}
-  $('#s2').classList.add('hidden'); $('#s1').classList.remove('hidden'); $('#tc').focus();
+  $('#s2').classList.add('hidden'); $('#s1').classList.remove('hidden');
 };
+
+$('#file').onchange = async () => {
+  for (const f of $('#file').files) {
+    if (FILES.length >= 10) { showMsg($('#fmsg'), 'err', 'Up to 10 photos per claim.'); break; }
+    FILES.push({ file: await shrinkImage(f), url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null, name: f.name });
+  }
+  $('#file').value = ''; drawPhotos();
+};
+function drawPhotos() {
+  $$('#photos .ph').forEach(e => e.remove());
+  const add = $('#photos .addph');
+  FILES.forEach((p, i) => {
+    const d = document.createElement('div'); d.className = 'ph';
+    d.innerHTML = (p.url ? `<img src="${p.url}" alt="">` : `<div>PDF<br>${esc(p.name.slice(0, 14))}</div>`) + `<button type="button" title="Remove">×</button>`;
+    d.querySelector('button').onclick = () => { FILES.splice(i, 1); drawPhotos(); };
+    $('#photos').insertBefore(d, add);
+  });
+}
 
 $('#f').onsubmit = async (ev) => {
   ev.preventDefault();
   const msg = $('#fmsg'); msg.classList.add('hidden');
-  const fd = new FormData($('#f'));
   const miss = [];
-  if (!fd.get('category')) miss.push('claim category');
-  if (!fd.get('expense_date')) miss.push('date on receipt');
-  if (!String(fd.get('amount')).trim()) miss.push('receipt amount');
-  const file = $('#file').files[0];
-  if (!file) miss.push('receipt photo or PDF');
-  if (miss.length) { showMsg(msg, 'err', 'Please fill in: ' + miss.join(', ') + '.'); return; }
-  fd.set('file', await shrinkImage(file));
-  $('#sub').disabled = true; $('#sub').textContent = 'Uploading…';
+  if (!$('#category').value) miss.push('category');
+  if (!$('#amount').value.trim()) miss.push('total amount');
+  if (!FILES.length) miss.push('at least one photo');
+  if (miss.length) { showMsg(msg, 'err', 'Please add: ' + miss.join(', ') + '.'); return; }
+  const fd = new FormData();
+  fd.set('tc_id', WHO.tc_id);
+  ['claim_month', 'category', 'amount', 'expense_date', 'merchant', 'receipt_no', 'remark'].forEach(k => fd.set(k, $('#' + k).value));
+  FILES.forEach(p => fd.append('file', p.file));
+  $('#sub').disabled = true; $('#sub').textContent = 'Sending…';
   try {
     const r = await api('/api/receipts', { method: 'POST', body: fd });
-    const amt = Number(String(fd.get('amount')).replace(/,/g, '')).toFixed(2);
-    showMsg(msg, 'ok', `Receipt received. Reference ${r.ref}. You can submit the next one.`);
-    SENT.unshift({ ref: r.ref, cat: fd.get('category'), amt, date: fd.get('expense_date'), month: fd.get('claim_month') });
-    renderSent();
-    ['expense_date', 'amount', 'merchant', 'receipt_no', 'remark', 'file'].forEach(k => $('#' + k).value = '');
+    const amt = Number($('#amount').value.replace(/,/g, '')).toFixed(2);
+    showMsg(msg, 'ok', `Sent. Reference ${r.ref}. You can send the next claim.`);
+    SENT.unshift({ ref: r.ref, cat: $('#category').value, amt, n: FILES.length, month: $('#claim_month').value });
+    drawSent();
+    FILES = []; drawPhotos();
+    ['amount', 'expense_date', 'merchant', 'receipt_no', 'remark'].forEach(k => $('#' + k).value = '');
+    $('#category').value = '';
   } catch (e) { showMsg(msg, 'err', e.message); }
-  finally { $('#sub').disabled = false; $('#sub').textContent = 'Submit receipt'; }
+  finally { $('#sub').disabled = false; $('#sub').textContent = 'Send'; }
 };
-
-function renderSent() {
+function drawSent() {
   $('#s3').classList.remove('hidden');
   $('#sent').innerHTML = SENT.map(s => `<div class="item"><div><strong>${esc(s.cat)}</strong> · RM ${esc(s.amt)}
-    <div class="muted">Claim month ${monthLabel(s.month)} · Receipt date ${fmtDate(s.date)}</div></div>
+    <div class="muted">${s.n} photo${s.n > 1 ? 's' : ''} · Claim month ${monthLabel(s.month)}</div></div>
     <div><span class="chip Accepted">${esc(s.ref)}</span></div></div>`).join('');
 }
 

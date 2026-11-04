@@ -198,7 +198,12 @@ async function route(request, env, url, user) {
         ? 'SELECT r.*, s.name AS staff_name, s.dn_person_no FROM receipts r LEFT JOIN staff s ON s.tc_id=r.tc_id WHERE r.claim_month=? ORDER BY r.tc_id, r.category, r.expense_date'
         : 'SELECT r.*, s.name AS staff_name, s.dn_person_no FROM receipts r LEFT JOIN staff s ON s.tc_id=r.tc_id ORDER BY r.claim_month DESC, r.tc_id';
       const q = month ? env.DB.prepare(sql).bind(month) : env.DB.prepare(sql);
-      return json({ receipts: (await q.all()).results });
+      const rows = (await q.all()).results;
+      await ensureFilesTable(env);
+      const counts = (await env.DB.prepare('SELECT receipt_id, COUNT(*) AS n FROM receipt_files GROUP BY receipt_id').all()).results;
+      const cm = new Map(counts.map(c => [c.receipt_id, c.n]));
+      rows.forEach(r => { r.photos = cm.get(r.id) || 1; });
+      return json({ receipts: rows });
     }
     if (!user.staff) return json({ receipts: [] });
     const rs = await env.DB.prepare('SELECT * FROM receipts WHERE tc_id=? ORDER BY submitted_at DESC').bind(user.staff.tc_id).all();
@@ -227,9 +232,15 @@ async function route(request, env, url, user) {
     return json({ ok: true });
   }
 
-  if ((mm = path.match(/^\/api\/file\/([\w-]+)$/)) && m === 'GET') {
+  if ((mm = path.match(/^\/api\/file\/([\w-]+)(?:\/(\d+))?$/)) && m === 'GET') {
     const r = await getReceipt(env, mm[1]);
     if (!user.isHR && (!user.staff || r.tc_id !== user.staff.tc_id)) throw new HttpError(403, 'Not allowed.');
+    if (mm[2] && mm[2] !== '1') {
+      await ensureFilesTable(env);
+      const fr = await env.DB.prepare('SELECT * FROM receipt_files WHERE receipt_id=? AND n=?').bind(r.id, +mm[2]).first();
+      if (!fr) throw new HttpError(404, 'File not found.');
+      r.file_key = fr.file_key; r.file_type = fr.file_type; r.file_name = fr.file_name;
+    }
     const obj = await env.RECEIPTS.get(r.file_key);
     if (!obj) throw new HttpError(404, 'File not found.');
     return new Response(obj.body, { headers: {
@@ -315,40 +326,57 @@ async function createReceipt(request, env, user) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) bad('Choose the claim month.');
   const category = f('category');
   if (!CATEGORIES.includes(category)) bad('Choose a claim category.');
-  const date = f('expense_date');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date))) bad('Enter the date on the receipt.');
-  if (date > new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10)) bad('Receipt date cannot be in the future.');
+  const date = f('expense_date'); // optional
+  if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date)))) bad('Receipt date is not valid.');
+  if (date && date > new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10)) bad('Receipt date cannot be in the future.');
   const amt = f('amount').replace(/,/g, '');
-  if (!/^\d+(\.\d{1,2})?$/.test(amt)) bad('Enter the receipt amount, e.g. 45.60');
+  if (!/^\d+(\.\d{1,2})?$/.test(amt)) bad('Enter the total amount, e.g. 60.00');
   const [ri, rd = ''] = amt.split('.');
   const sen = parseInt(ri, 10) * 100 + parseInt((rd + '00').slice(0, 2), 10);
   if (sen <= 0 || sen > 10_000_000) bad('Receipt amount is not valid.');
 
-  const file = form.get('file');
-  if (!file || typeof file === 'string') bad('Attach the receipt photo or PDF.');
-  if (file.size > MAX_FILE_BYTES) bad('File is larger than 10 MB. Please take a smaller photo.');
-  const type = (file.type || '').toLowerCase();
-  if (!ALLOWED_TYPES.includes(type)) bad('Only photo (JPG, PNG, HEIC) or PDF files are accepted.');
-
-  const buf = await file.arrayBuffer();
-  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map(b => b.toString(16).padStart(2, '0')).join('');
-
-  // Hard stop: the same file is already on record and not rejected/withdrawn.
-  const dup = await env.DB.prepare("SELECT id, tc_id, claim_month, category, submitted_at FROM receipts WHERE file_hash=? AND status IN ('Submitted','Accepted')").bind(hash).first();
-  if (dup) bad(user?.isHR
-    ? `This same file was already submitted on ${dup.submitted_at.slice(0, 10)} (${dup.tc_id}, ${dup.category}, claim month ${dup.claim_month}). It is not accepted again.`
-    : `This same file was already submitted on ${dup.submitted_at.slice(0, 10)}. It is not accepted again. If you think this is wrong, contact HR.`);
+  const list = form.getAll('file').filter(x => x && typeof x !== 'string' && x.size > 0);
+  if (!list.length) bad('Attach at least one receipt photo or PDF.');
+  if (list.length > 10) bad('Up to 10 photos per claim. Please send the rest as another claim.');
+  const items = [];
+  for (const file of list) {
+    if (file.size > MAX_FILE_BYTES) bad(`"${file.name}" is larger than 10 MB. Please take a smaller photo.`);
+    const type = (file.type || '').toLowerCase();
+    if (!ALLOWED_TYPES.includes(type)) bad(`"${file.name}": only photo (JPG, PNG, HEIC) or PDF files are accepted.`);
+    const buf = await file.arrayBuffer();
+    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map(b => b.toString(16).padStart(2, '0')).join('');
+    if (items.some(i => i.hash === hash)) bad(`The same photo is attached twice ("${file.name}").`);
+    items.push({ file, type, buf, hash, name: (file.name || 'receipt').replace(/[^\w.\- ]/g, '_').slice(0, 120) });
+  }
+  await ensureFilesTable(env);
+  // Hard stop: a photo already on record (claim not rejected/withdrawn).
+  for (const it of items) {
+    const dup = await env.DB.prepare(`SELECT r.id, r.tc_id, r.claim_month, r.category, r.submitted_at FROM receipts r
+        WHERE r.status IN ('Submitted','Accepted') AND (r.file_hash=? OR r.id IN (SELECT receipt_id FROM receipt_files WHERE file_hash=?)) LIMIT 1`)
+      .bind(it.hash, it.hash).first();
+    if (dup) bad(user?.isHR
+      ? `"${it.name}" was already submitted on ${dup.submitted_at.slice(0, 10)} (${dup.tc_id}, ${dup.category}, claim month ${dup.claim_month}). It is not accepted again.`
+      : `"${it.name}" was already submitted on ${dup.submitted_at.slice(0, 10)}. It is not accepted again. If you think this is wrong, contact HR.`);
+  }
 
   const id = crypto.randomUUID();
-  const safeName = (file.name || 'receipt').replace(/[^\w.\- ]/g, '_').slice(0, 120);
-  const key = `${month}/${tc}/${id}-${safeName}`;
-  await env.RECEIPTS.put(key, buf, { httpMetadata: { contentType: type } });
-  await env.DB.prepare(`INSERT INTO receipts (id,tc_id,claim_month,category,expense_date,amount_sen,merchant,receipt_no,remark,
+  const stmts = [];
+  for (let n = 0; n < items.length; n++) {
+    const it = items[n];
+    it.key = `${month}/${tc}/${id}-${n + 1}-${it.name}`;
+    await env.RECEIPTS.put(it.key, it.buf, { httpMetadata: { contentType: it.type } });
+    stmts.push(env.DB.prepare('INSERT INTO receipt_files (receipt_id, n, file_key, file_name, file_type, file_size, file_hash) VALUES (?,?,?,?,?,?,?)')
+      .bind(id, n + 1, it.key, it.name, it.type, it.file.size, it.hash));
+  }
+  const first = items[0];
+  stmts.unshift(env.DB.prepare(`INSERT INTO receipts (id,tc_id,claim_month,category,expense_date,amount_sen,merchant,receipt_no,remark,
       file_key,file_name,file_type,file_size,file_hash,channel,submitted_by,submitted_at,status)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'Submitted')`)
-    .bind(id, tc, month, category, date, sen, f('merchant').slice(0, 120) || null, f('receipt_no').slice(0, 60) || null,
-      f('remark').slice(0, 300) || null, key, safeName, type, file.size, hash, channel, actor, now()).run();
-  await audit(env, actor, 'submit', id, { tc, month, category, sen, channel, ip });
+    .bind(id, tc, month, category, date || '', sen, f('merchant').slice(0, 120) || null, f('receipt_no').slice(0, 60) || null,
+      f('remark').slice(0, 300) || null, first.key, items.length > 1 ? `${first.name} (+${items.length - 1} more)` : first.name,
+      first.type, items.reduce((a, i) => a + i.file.size, 0), first.hash, channel, actor, now()));
+  await env.DB.batch(stmts);
+  await audit(env, actor, 'submit', id, { tc, month, category, sen, channel, photos: items.length, ip });
   return json({ ok: true, id, ref: refOf(id), name: staff.name });
 }
 
@@ -376,4 +404,13 @@ async function openLookup(request, env) {
   const s = await env.DB.prepare('SELECT tc_id, name FROM staff WHERE tc_id=? AND active=1').bind(tc).first();
   if (!s) return json({ error: `Staff ID ${tc} is not on the DN staff list. Please check the ID or contact HR.` }, 404);
   return json({ tc_id: s.tc_id, name: s.name });
+}
+
+let filesTableReady = false;
+async function ensureFilesTable(env) {
+  if (filesTableReady) return;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS receipt_files (receipt_id TEXT NOT NULL, n INTEGER NOT NULL, file_key TEXT NOT NULL,
+    file_name TEXT NOT NULL, file_type TEXT NOT NULL, file_size INTEGER NOT NULL, file_hash TEXT NOT NULL, PRIMARY KEY (receipt_id, n))`).run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_receipt_files_hash ON receipt_files(file_hash)').run();
+  filesTableReady = true;
 }

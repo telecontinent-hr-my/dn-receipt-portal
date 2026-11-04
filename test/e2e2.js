@@ -1,0 +1,23 @@
+const { chromium, devices } = require('playwright'); const path=require('path');
+const B='http://localhost:8787', OUT=path.join(__dirname,'out'), RC=path.join(__dirname,'rc');
+(async()=>{
+  const br=await chromium.launch();
+  const hr=await br.newContext({viewport:{width:1360,height:900},acceptDownloads:true}); const p=await hr.newPage(); p.on('pageerror',e=>console.log('ERR',e.message)); p.on('dialog',d=>d.accept('x'));
+  await p.goto(B+'/hr.html'); await p.click('[data-tab=staff]'); await p.setInputFiles('#sFile',path.join(__dirname,'staff.xlsx')); await p.click('#sSave'); await p.waitForSelector('#sMsg.ok');
+  const st=await br.newContext({...devices['iPhone 13'],extraHTTPHeaders:{'x-dev-user':'none'}}); const s=await st.newPage(); s.on('pageerror',e=>console.log('ERR',e.message));
+  await s.goto(B+'/'); await s.fill('#tc','TC4737'); await s.click('#idf button'); await s.waitForSelector('#s2:not(.hidden)');
+  const send=async(cat,amt,files)=>{ await s.selectOption('#category',cat); await s.fill('#amount',amt); await s.setInputFiles('#file',files.map(f=>path.join(RC,f)));
+    await s.click('#sub'); await s.waitForFunction(()=>!document.querySelector('#fmsg').classList.contains('hidden')&&document.querySelector('#sub').textContent==='Send'); return s.textContent('#fmsg'); };
+  await s.selectOption('#claim_month','2026-10');
+  console.log(await send('Toll','121.69',['r6.jpg','r7.jpg','r8.jpg']));
+  console.log(await send('Car Maintenance','683.46',['r0.jpg']));
+  console.log('dup:',await send('Mileage','245',['r7.jpg']));
+  await s.screenshot({path:OUT+'/staff-new.png',fullPage:true});
+  await p.click('[data-tab=match]'); await p.setInputFiles('#wbFile',process.argv[2]); await p.waitForFunction(()=>!document.querySelector('#run').disabled);
+  await p.selectOption('#wbSheet','Oct-26'); await p.click('#run'); await p.waitForSelector('#res:not(.hidden)');
+  await p.fill('#q','TC4737'); await p.check('#showAll');
+  console.log((await p.textContent('#resT')).replace(/\s+/g,' ').slice(0,700));
+  await p.click('#resT button:has-text("3 photos")'); await p.waitForTimeout(800);
+  await p.screenshot({path:OUT+'/hr-photos.png'});
+  await br.close();
+})().catch(e=>{console.error(e);process.exit(1)});

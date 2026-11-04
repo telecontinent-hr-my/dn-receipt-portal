@@ -74,13 +74,13 @@
             <div><label class="req" for="a_tc">Staff</label><select id="a_tc" name="tc_id"></select></div>
             <div><label class="req" for="a_month">Claim month</label><select id="a_month" name="claim_month"></select></div>
             <div><label class="req" for="a_cat">Claim category</label><select id="a_cat" name="category"><option value="">Choose…</option></select></div>
-            <div><label class="req" for="a_date">Date on receipt</label><input type="date" id="a_date" name="expense_date"></div>
-            <div><label class="req" for="a_amt">Receipt amount (RM)</label><input id="a_amt" name="amount" inputmode="decimal"></div>
+            <div><label for="a_date">Date on receipt</label><input type="date" id="a_date" name="expense_date"></div>
+            <div><label class="req" for="a_amt">Total amount (RM)</label><input id="a_amt" name="amount" inputmode="decimal"></div>
             <div><label for="a_mer">Shop / clinic / provider</label><input id="a_mer" name="merchant"></div>
             <div><label for="a_no">Receipt or invoice no.</label><input id="a_no" name="receipt_no"></div>
           </div>
           <div style="margin-top:12px"><label for="a_rem">Remark (who sent it, how)</label><textarea id="a_rem" name="remark" placeholder="e.g. Sent by staff on WhatsApp 14/10/2026"></textarea></div>
-          <div style="margin-top:12px"><label class="req" for="a_file">Receipt photo or PDF</label><input type="file" id="a_file" name="file" accept="image/*,application/pdf"></div>
+          <div style="margin-top:12px"><label class="req" for="a_file">Receipt photos or PDF (you can pick several)</label><input type="file" id="a_file" name="file" accept="image/*,application/pdf" multiple></div>
           <div id="aMsg" class="msg hidden"></div>
           <button type="submit" id="aSub" style="margin-top:12px">Add receipt</button>
         </form>
@@ -221,9 +221,9 @@ function drawTable() {
       <td class="n">${x.dn ? rm(x.dn) : '-'}</td><td class="n">${x.rc ? rm(x.rc) : '-'}</td><td class="n">${x.rc - x.dn ? rm(x.rc - x.dn) : '0.00'}</td><td class="n">${rm(x.supported)}</td>
       <td><span class="chip ${sev[x.severity]}">${esc(x.status)}</span>${x.pending ? `<div class="muted">${x.pending} not checked</div>` : ''}</td>
       <td>${esc(advice(x))}${x.issues.length ? '<ul style="margin:4px 0 0;padding-left:16px">' + x.issues.map(i => `<li>${esc(i)}</li>`).join('') + '</ul>' : ''}${x.note ? `<div class="muted">${esc(x.note)}</div>` : ''}</td>
-      <td>${x.receipts.map(r => `<button class="small ghost" style="margin:1px" data-view="${r.id}" data-t="${esc(x.name + ' · ' + r.category)}">RM ${rm(r.amount_sen)}</button>`).join('')}</td>
+      <td>${x.receipts.map(r => `<button class="small ghost" style="margin:1px" data-view="${r.id}" data-n="${r.photos || 1}" data-t="${esc(x.name + ' · ' + r.category)}">RM ${rm(r.amount_sen)}${(r.photos || 1) > 1 ? ' · ' + r.photos + ' photos' : ''}</button>`).join('')}</td>
     </tr>`).join('') : '<tr><td colspan="10" class="muted">Nothing to act on.</td></tr>') + '</tbody>';
-  $$('#resT [data-view]').forEach(b => b.onclick = () => openFile(b.dataset.view, b.dataset.t));
+  $$('#resT [data-view]').forEach(b => b.onclick = () => openFile(b.dataset.view, b.dataset.t, +b.dataset.n));
 }
 
 function advice(x) {
@@ -246,8 +246,8 @@ $('#exp').onclick = () => {
   const head = ['Staff', 'TC ID', 'DN Person No', 'Category', 'DN approved (RM)', 'Receipts (RM)', 'Difference (RM)', 'Supported (RM)', 'Result', 'Level', 'What to do', 'Details', 'Receipts count', 'Not checked', 'DN source cells'];
   const line = (x) => [x.name, x.tc.startsWith('DN#') ? '' : x.tc, x.personNo, x.category, n(x.dn), n(x.rc), n(x.rc - x.dn), n(x.supported), x.status, x.severity, advice(x), [...x.issues, x.note].filter(Boolean).join(' | '), x.receipts.length, x.pending, x.dnRefs.join(', ')];
   const rc = r.receipts.filter(z => z.claim_month === r.month);
-  const rHead = ['Ref', 'Staff', 'TC ID', 'Category', 'Receipt date', 'Amount (RM)', 'Shop / provider', 'Receipt no.', 'Status', 'HR note', 'Channel', 'Submitted by', 'Submitted at', 'File', 'Remark'];
-  const rRow = (z) => [refOf(z.id), z.staff_name || '', z.tc_id, z.category, z.expense_date, n(z.amount_sen), z.merchant || '', z.receipt_no || '', z.status, z.hr_note || '', z.channel, z.submitted_by, z.submitted_at, z.file_name, z.remark || ''];
+  const rHead = ['Ref', 'Staff', 'TC ID', 'Category', 'Receipt date', 'Total amount (RM)', 'Photos', 'Shop / provider', 'Receipt no.', 'Status', 'HR note', 'Channel', 'Submitted by', 'Submitted at', 'File', 'Remark'];
+  const rRow = (z) => [refOf(z.id), z.staff_name || '', z.tc_id, z.category, z.expense_date || '', n(z.amount_sen), z.photos || 1, z.merchant || '', z.receipt_no || '', z.status, z.hr_note || '', z.channel, z.submitted_by, z.submitted_at, z.file_name, z.remark || ''];
   const wb = XLSX.utils.book_new();
   const add = (name, aoa, money = []) => {
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -277,15 +277,15 @@ function drawReceipts() {
   const rows = RCPTS.filter(r => (!st || r.status === st) && (!q || `${r.staff_name} ${r.tc_id}`.toLowerCase().includes(q)));
   $('#rT').innerHTML = `<thead><tr><th>Ref</th><th>Staff</th><th>TC ID</th><th>Month</th><th>Category</th><th>Receipt date</th><th class="n">Amount</th><th>Shop / no.</th><th>Status</th><th>Sent by</th><th></th></tr></thead><tbody>` +
     (rows.length ? rows.map(r => `<tr>
-      <td style="white-space:nowrap">${refOf(r.id)}</td><td>${esc(r.staff_name || '')}</td><td>${esc(r.tc_id)}</td><td>${monthLabel(r.claim_month)}</td><td>${esc(r.category)}</td><td>${fmtDate(r.expense_date)}</td>
+      <td style="white-space:nowrap">${refOf(r.id)}</td><td>${esc(r.staff_name || '')}</td><td>${esc(r.tc_id)}</td><td>${monthLabel(r.claim_month)}</td><td>${esc(r.category)}</td><td>${r.expense_date ? fmtDate(r.expense_date) : '-'}</td>
       <td class="n">${rm(r.amount_sen)}</td><td>${esc(r.merchant || '')}${r.receipt_no ? '<div class="muted">' + esc(r.receipt_no) + '</div>' : ''}${r.remark ? '<div class="muted">' + esc(r.remark) + '</div>' : ''}</td>
       <td><span class="chip ${r.status}">${r.status}</span>${r.hr_note ? '<div class="muted">' + esc(r.hr_note) + '</div>' : ''}</td>
       <td>${esc(r.channel)}<div class="muted">${esc(r.submitted_by)}</div></td>
-      <td style="white-space:nowrap"><button class="small ghost" data-view="${r.id}" data-t="${esc((r.staff_name || r.tc_id) + ' · ' + r.category)}">View</button>
+      <td style="white-space:nowrap"><button class="small ghost" data-view="${r.id}" data-n="${r.photos || 1}" data-t="${esc((r.staff_name || r.tc_id) + ' · ' + r.category)}">View${(r.photos || 1) > 1 ? ' (' + r.photos + ')' : ''}</button>
         ${r.status !== 'Withdrawn' ? `<button class="small" data-acc="${r.id}" ${r.status === 'Accepted' ? 'disabled' : ''}>Accept</button>
         <button class="small danger" data-rej="${r.id}" ${r.status === 'Rejected' ? 'disabled' : ''}>Reject</button>` : ''}</td>
     </tr>`).join('') : '<tr><td colspan="11" class="muted">No receipts.</td></tr>') + '</tbody>';
-  $$('#rT [data-view]').forEach(b => b.onclick = () => openFile(b.dataset.view, b.dataset.t));
+  $$('#rT [data-view]').forEach(b => b.onclick = () => openFile(b.dataset.view, b.dataset.t, +b.dataset.n));
   $$('#rT [data-acc]').forEach(b => b.onclick = () => review(b.dataset.acc, 'Accepted', ''));
   $$('#rT [data-rej]').forEach(b => b.onclick = () => {
     const note = prompt('Reason for rejecting (the staff will see this):'); if (note === null) return;
@@ -302,9 +302,9 @@ async function review(id, status, note) {
 $('#af').onsubmit = async (ev) => {
   ev.preventDefault();
   const fd = new FormData($('#af')), msg = $('#aMsg');
-  const file = $('#a_file').files[0];
-  if (!fd.get('tc_id') || !fd.get('category') || !fd.get('expense_date') || !String(fd.get('amount')).trim() || !file) { showMsg(msg, 'err', 'Fill in all fields marked *.'); return; }
-  fd.set('file', await shrinkImage(file));
+  const picked = [...$('#a_file').files];
+  if (!fd.get('tc_id') || !fd.get('category') || !String(fd.get('amount')).trim() || !picked.length) { showMsg(msg, 'err', 'Fill in all fields marked *.'); return; }
+  fd.delete('file'); for (const f of picked) fd.append('file', await shrinkImage(f));
   $('#aSub').disabled = true;
   try {
     await api('/api/receipts', { method: 'POST', body: fd });

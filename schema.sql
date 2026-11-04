@@ -55,3 +55,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 -- Internal settings (the session signing key is created here automatically)
 CREATE TABLE IF NOT EXISTS app_settings (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+
+-- Photos of each claim (one claim can have many receipts)
+CREATE TABLE IF NOT EXISTS receipt_files (receipt_id TEXT NOT NULL, n INTEGER NOT NULL, file_key TEXT NOT NULL,
+  file_name TEXT NOT NULL, file_type TEXT NOT NULL, file_size INTEGER NOT NULL, file_hash TEXT NOT NULL, PRIMARY KEY (receipt_id, n));
+CREATE INDEX IF NOT EXISTS idx_receipt_files_hash ON receipt_files(file_hash);
