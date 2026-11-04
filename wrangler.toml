@@ -20,6 +20,5 @@ bucket_name = "dn-receipts"
 # HR users who can see all receipts and run the matching (comma separated)
 HR_EMAILS = "hairul.izwan@telecontinent.com.my"
 # Access application protects only the path hr.html. Values from Zero Trust > Access > Applications > (this app) > Overview
-# Also add a Secret named SESSION_SECRET in the worker settings (see README step 5).
 ACCESS_TEAM_DOMAIN = "REPLACE.cloudflareaccess.com"
 ACCESS_AUD = "REPLACE_WITH_APPLICATION_AUDIENCE_TAG"

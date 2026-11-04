@@ -62,8 +62,8 @@ You need the Cloudflare account that already runs HR TMS Helper, and the GitHub 
 2. Leave the deploy command as `npx wrangler deploy` → **Deploy**.
 3. Note the address, e.g. `https://dn-receipt-portal.<your-name>.workers.dev`.
 
-### 5. Set the session secret
-Worker → **Settings → Variables and Secrets → Add** → type **Secret**, name `SESSION_SECRET`. For the value, use a long random text of at least 32 characters, e.g. from https://www.random.org/strings/ (two strings of 20 joined together). Save. Do not share it.
+### 5. Session secret
+Nothing to do. The worker creates its own random signing key the first time it runs and keeps it in the database (table `app_settings`). To replace it, delete that row; all staff will need to sign in again.
 
 ### 6. Protect the HR page with Cloudflare Access
 1. **Zero Trust → Access → Applications → Add an application → Self-hosted**.

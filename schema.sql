@@ -52,3 +52,6 @@ CREATE TABLE IF NOT EXISTS audit_log (
   ref        TEXT,
   detail     TEXT
 );
+
+-- Internal settings (the session signing key is created here automatically)
+CREATE TABLE IF NOT EXISTS app_settings (k TEXT PRIMARY KEY, v TEXT NOT NULL);

@@ -68,9 +68,21 @@ async function identify(request, env) {
   return null;
 }
 
+// Session signing key. Uses the SESSION_SECRET setting if present; otherwise the worker
+// creates a random key once and keeps it in the database (table app_settings).
+let secretCache = null;
+async function sessionSecret(env) {
+  if (env.SESSION_SECRET && env.SESSION_SECRET.length >= 32) return env.SESSION_SECRET;
+  if (secretCache) return secretCache;
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS app_settings (k TEXT PRIMARY KEY, v TEXT NOT NULL)').run();
+  const fresh = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  await env.DB.prepare("INSERT OR IGNORE INTO app_settings (k, v) VALUES ('session_secret', ?)").bind(fresh).run();
+  const row = await env.DB.prepare("SELECT v FROM app_settings WHERE k='session_secret'").first();
+  secretCache = row.v;
+  return secretCache;
+}
 async function hmac(env, text) {
-  if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) throw new HttpError(500, 'SESSION_SECRET is not set. See README step 5.');
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.SESSION_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(await sessionSecret(env)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return b64url(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text))));
 }
 const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
