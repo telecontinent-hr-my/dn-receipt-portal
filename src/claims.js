@@ -93,6 +93,18 @@ function readPdfText(category, text) {
   return null;
 }
 
+// all dates printed in a PDF's text, as YYYY-MM-DD
+function textDates(text) {
+  const out = new Set();
+  for (const m of String(text || '').matchAll(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](20\d{2})\b/g)) {
+    const d = +m[1], mo = +m[2]; if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12) out.add(`${m[3]}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+  }
+  for (const m of String(text || '').matchAll(/\b(20\d{2})-(\d{2})-(\d{2})\b/g)) out.add(m[0]);
+  return [...out].sort();
+}
+const MAX_AGE_MONTHS = 6;   // receipt older than this (before the claim month) goes to HR
+const TOLERANCE_SEN = 100;  // receipts within RM 1.00 of the DN amount count as a match
+
 function aiPrompt(category, staffName) {
   return `You check expense receipts for a Malaysian company. The staff is "${staffName}". The claim category is "${category}" (${CATEGORY_HINT[category] || 'expense'}).
 Look at the image and reply with JSON only (an array if the image shows more than one receipt):
@@ -101,7 +113,9 @@ Rules:
 - amount_paid_rm = what the customer actually paid in RM, after any subsidy (e.g. BUDI95) or panel/insurance part. Read handwritten amounts carefully (e.g. "400" is four hundred).
 - A Touch n Go / toll statement: add up ONLY toll transactions (not reloads, food, investment, car wash, parking).
 - A screenshot of a claim or expense app (e.g. SAP Concur), a quotation, a chat, or a page with no payment is NOT a receipt: is_receipt false, amount null.
-- If the total cannot be read clearly, amount_paid_rm null.`;
+- If the total cannot be read clearly, amount_paid_rm null.
+- matches_category: true ONLY if the document is clearly for "${category}". If it is for something else (e.g. food for a toll claim, petrol for a medical claim) or you are not sure, false.
+- date: the transaction date printed on the receipt. If not printed, null.`;
 }
 
 function parseAi(out) {
@@ -139,7 +153,18 @@ async function recompute(env, claimId) {
     for (const x of (r.flags || [])) flags.push(`${f.file_name}: ${x}`);
     if (f.read_sen === null) flags.push(`${f.file_name}: amount could not be read.`);
     else total += f.read_sen;
+    // receipt date must be inside the claim month or up to 6 months before it
+    const okDate = (d) => /^20\d{2}-\d{2}-\d{2}$/.test(d || '');
+    const dates = (String(f.method || '').startsWith('PDF text') && r.text_dates && r.text_dates.length ? r.text_dates : (r.items || []).map(i => i.date)).filter(okDate).sort();
+    const [y, mo] = c.claim_month.split('-').map(Number);
+    const end = `${c.claim_month}-31`, startD = new Date(Date.UTC(y, mo - 1 - MAX_AGE_MONTHS, 1)).toISOString().slice(0, 10);
+    const fmt = (d) => d.split('-').reverse().join('/');
+    if (!dates.length) flags.push(`${f.file_name}: receipt date could not be read.`);
+    else if (dates[dates.length - 1] > end) flags.push(`${f.file_name}: dated ${fmt(dates[dates.length - 1])}, after the claim month.`);
+    else if (dates[0] < startD) flags.push(`${f.file_name}: dated ${fmt(dates[0])}, more than ${MAX_AGE_MONTHS} months before the claim month.`);
   }
+  if (files.length && total > c.approved_sen + TOLERANCE_SEN)
+    flags.push(`Receipts total RM ${(total / 100).toFixed(2)} is more than the DN amount of RM ${(c.approved_sen / 100).toFixed(2)}. Check that these are the right receipts.`);
   // entitlement (per DN person, per year)
   const ent = await env.DB.prepare('SELECT annual_sen FROM entitlements WHERE dn_person_no=? AND category=?').bind(c.dn_person_no, c.category).first();
   if (ent) {
@@ -151,7 +176,7 @@ async function recompute(env, claimId) {
   let status;
   if (!files.length) status = 'Not submitted';
   else if (flags.length) status = 'HR check';
-  else if (total >= c.approved_sen) status = 'Cleared';
+  else if (total >= c.approved_sen - TOLERANCE_SEN) status = 'Cleared';
   else status = 'Short';
   await env.DB.prepare('UPDATE dn_claims SET status=?, read_sen=?, flags=?, updated_at=? WHERE id=?')
     .bind(status, total, JSON.stringify(flags), now(), claimId).run();
@@ -181,6 +206,9 @@ export async function claimRoutes(request, env, url, user, ctx) {
       if (!s) throw new HttpErr(404, `Staff ID ${tc} is not on the DN staff list. Please check the ID or contact HR.`);
       const months = (await env.DB.prepare(`SELECT DISTINCT claim_month FROM dn_claims WHERE (tc_id=? OR dn_person_no=?) ORDER BY claim_month DESC LIMIT ${OPEN_MONTHS}`)
         .bind(tc, s.dn_person_no || '-').all()).results.map(r => r.claim_month);
+      if (months.length) { const withFiles = (await env.DB.prepare(`SELECT DISTINCT d.id FROM dn_claims d JOIN claim_files f ON f.claim_id=d.id AND f.removed=0
+          WHERE (d.tc_id=? OR d.dn_person_no=?) AND d.claim_month IN (${months.map(() => '?').join(',')})`).bind(tc, s.dn_person_no || '-', ...months).all()).results;
+        for (const w of withFiles) await recompute(env, w.id); }
       const claims = months.length ? (await env.DB.prepare(`SELECT * FROM dn_claims WHERE (tc_id=? OR dn_person_no=?) AND claim_month IN (${months.map(() => '?').join(',')}) ORDER BY claim_month DESC, category`)
         .bind(tc, s.dn_person_no || '-', ...months).all()).results : [];
       const files = claims.length ? (await env.DB.prepare(`SELECT * FROM claim_files WHERE removed=0 AND claim_id IN (${claims.map(() => '?').join(',')}) ORDER BY uploaded_at`)
@@ -228,7 +256,7 @@ export async function claimRoutes(request, env, url, user, ctx) {
             if (it.is_receipt === false) { flags.push(`Not a receipt (${it.doc_type || 'unknown document'}).`); continue; }
             const s = toSen(it.amount_paid_rm);
             if (s === null) unknown = true; else sum += s;
-            if (it.matches_category === false) flags.push(`Looks like ${it.doc_type || 'another type'}${it.merchant ? ' from ' + it.merchant : ''}, not ${c.category}.`);
+            if (it.matches_category !== true) flags.push(`Looks like ${it.doc_type || 'another type'}${it.merchant ? ' from ' + it.merchant : ''}, not clearly ${c.category}.`);
           }
         }
         if (textRead) { for (let i = flags.length - 1; i >= 0; i--) if (!/^Not a receipt|^Looks like/.test(flags[i])) flags.splice(i, 1); }
@@ -251,7 +279,7 @@ export async function claimRoutes(request, env, url, user, ctx) {
       await env.RECEIPTS.put(key, buf, { httpMetadata: { contentType: type } });
       await env.DB.prepare(`INSERT INTO claim_files (id,claim_id,tc_id,file_key,file_name,file_type,file_size,file_hash,read_sen,read_json,method,uploaded_by,uploaded_at)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id, c.id, c.tc_id || tc, key, (file.name || 'receipt').slice(0, 120), type, file.size, hash,
-        read, JSON.stringify({ items, flags }), method, isHR ? user.email : `${tc} (staff form)`, now()).run();
+        read, JSON.stringify({ items, flags, text_dates: textDates(pdfText) }), method, isHR ? user.email : `${tc} (staff form)`, now()).run();
       const nc = await recompute(env, c.id);
       await audit(env, isHR ? user.email : `${tc} (staff form)`, 'photo', c.id, { file: file.name, read, method, flags, ip: request.headers.get('CF-Connecting-IP') || '' });
       const files = (await env.DB.prepare('SELECT * FROM claim_files WHERE claim_id=? AND removed=0').bind(c.id).all()).results;
@@ -325,6 +353,8 @@ export async function claimRoutes(request, env, url, user, ctx) {
 
     if (p === '/api/claims' && m === 'GET') {
       const mo = url.searchParams.get('month');
+      const withFiles = (await env.DB.prepare('SELECT DISTINCT d.id FROM dn_claims d JOIN claim_files f ON f.claim_id=d.id AND f.removed=0 WHERE d.claim_month=?').bind(mo).all()).results;
+      for (const w of withFiles) await recompute(env, w.id);
       const claims = (await env.DB.prepare(`SELECT d.*, s.name AS staff_name FROM dn_claims d LEFT JOIN staff s ON s.tc_id=d.tc_id WHERE d.claim_month=? ORDER BY COALESCE(s.name,d.dn_name), d.category`).bind(mo).all()).results;
       const files = (await env.DB.prepare(`SELECT f.id, f.claim_id, f.file_name, f.read_sen, f.method, f.read_json, f.uploaded_by, f.uploaded_at FROM claim_files f JOIN dn_claims d ON d.id=f.claim_id WHERE d.claim_month=? AND f.removed=0 ORDER BY f.uploaded_at`).bind(mo).all()).results;
       return json({ claims: claims.map(c => ({ ...pubClaim(c, []), tc_id: c.tc_id, name: c.staff_name || c.dn_name, dn_person_no: c.dn_person_no, source_ref: c.source_ref,
@@ -384,4 +414,4 @@ async function audit(env, actor, action, ref, detail) {
 }
 
 // exported for tests
-export const _test = { readPdfText, patientCheck, parseAi };
+export const _test = { readPdfText, patientCheck, parseAi, textDates };
