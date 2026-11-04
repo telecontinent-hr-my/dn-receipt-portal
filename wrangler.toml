@@ -11,6 +11,7 @@ compatibility_date = "2024-11-01"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+run_worker_first = true
 
 [[d1_databases]]
 binding = "DB"
@@ -32,6 +33,7 @@ name = "dn-receipt-hr"
 [env.hr.assets]
 directory = "./public"
 binding = "ASSETS"
+run_worker_first = true
 
 [[env.hr.d1_databases]]
 binding = "DB"
@@ -46,7 +48,7 @@ bucket_name = "dn-receipts"
 ROLE = "hr"
 STAFF_URL = "https://dn-receipt-portal.hairul-izwan.workers.dev/"
 # HR users who can see all receipts and run the matching (comma separated). Must also be allowed in the Access policy.
-HR_EMAILS = "hairul.izwan@telecontinent.com.my"
+HR_EMAILS = "hairul.izwan@telecontinent.com.my,farah.fauziah@telecontinent.com.my,farahana.khairudin@telecontinent.com.my,sharon.sunita@telecontinent.com.my,waionn@telecontinent.com.my,anisah.zaki@telecontinent.com.my"
 # Zero Trust > Access settings (team domain) and Access > Applications > (HR app) > Overview (AUD tag)
 ACCESS_TEAM_DOMAIN = "dawn-flower-2e1b.cloudflareaccess.com"
-ACCESS_AUD = "REPLACE_WITH_APPLICATION_AUDIENCE_TAG"
+ACCESS_AUD = "3a0565ae87b2d0b14a0a5631775b155205545fe0134f93991c9928bb63b33594"
