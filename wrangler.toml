@@ -22,6 +22,10 @@ database_id = "1716fa36-965a-4262-a09f-3f423c4d60fa"
 binding = "RECEIPTS"
 bucket_name = "dn-receipts"
 
+# Cloudflare Workers AI reads the receipt photos (free daily allowance)
+[ai]
+binding = "AI"
+
 [vars]
 ROLE = "staff"
 HR_URL = "https://dn-receipt-hr.hairul-izwan.workers.dev/hr.html"
@@ -43,6 +47,9 @@ database_id = "1716fa36-965a-4262-a09f-3f423c4d60fa"
 [[env.hr.r2_buckets]]
 binding = "RECEIPTS"
 bucket_name = "dn-receipts"
+
+[env.hr.ai]
+binding = "AI"
 
 [env.hr.vars]
 ROLE = "hr"

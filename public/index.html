@@ -3,158 +3,119 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DN Receipt Submission</title>
-<link rel="stylesheet" href="/app.css?v=20261104b">
+<title>DN Claim Receipts</title>
+<link rel="stylesheet" href="/app.css?v=20261104c">
 <style>
-  .photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-  .ph{position:relative;width:84px;height:84px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#f0f3f7;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);text-align:center}
-  .ph img{width:100%;height:100%;object-fit:cover}
-  .ph button{position:absolute;top:2px;right:2px;padding:0 6px;font-size:13px;line-height:20px;border-radius:10px;background:#fff;color:var(--err);border-color:var(--err)}
-  .addph{width:84px;height:84px;border:2px dashed #9fb3cc;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--brand);font-weight:600;font-size:13px;cursor:pointer;background:#fff}
-  .addph span{font-size:26px;line-height:26px}
-  details summary{cursor:pointer;color:var(--brand);font-weight:600;margin-top:12px}
   .big{font-size:18px}
+  .claim{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;background:#fff}
+  .claim .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .claim .amt{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .claim .say{margin-top:8px;font-size:14px}
+  .claim ul{margin:6px 0 0;padding-left:18px;font-size:13.5px}
+  .files{margin-top:8px;font-size:13.5px}
+  .files div{display:flex;justify-content:space-between;gap:8px;border-top:1px dashed var(--line);padding:5px 0}
+  .files button{padding:0 8px;font-size:12px}
+  .month{margin-top:18px;font-weight:700;color:var(--muted)}
+  .busy{color:var(--brand);font-weight:600;margin-top:8px}
 </style>
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <div><h1>DN Receipt Submission</h1><div class="sub">Telecontinent Sdn Bhd · Human Resources &amp; Administration</div></div>
+  <div><h1>DN Claim Receipts</h1><div class="sub">Telecontinent Sdn Bhd · Human Resources &amp; Administration</div></div>
 </div></header>
 
 <main class="wrap">
-  <!-- Step 1: staff ID -->
   <section id="s1" class="card" style="max-width:520px;margin:16px auto">
     <h2>Your staff ID</h2>
     <form id="idf" novalidate>
       <input id="tc" class="big" placeholder="e.g. TC4736" autocomplete="off" autocapitalize="characters">
       <div id="idmsg" class="msg hidden"></div>
-      <button type="submit" style="margin-top:12px;width:100%">Next</button>
+      <button type="submit" style="margin-top:12px;width:100%">Show my DN claims</button>
     </form>
   </section>
 
-  <!-- Step 2: claim -->
-  <section id="s2" class="card hidden" style="max-width:640px;margin:16px auto">
-    <div class="msg info" id="who"></div>
-    <h2>Send receipts for one claim</h2>
-    <p class="muted" style="margin-top:-6px">One claim = one category. If the claim has many receipts (e.g. Toll RM60 = 3 receipts of RM20), enter the <strong>total</strong> and add all the photos.</p>
-    <form id="f" novalidate>
-      <div class="grid">
-        <div><label class="req" for="category">Category</label><select id="category" class="big"><option value="">Choose…</option></select></div>
-        <div><label class="req" for="amount">Total amount (RM)</label><input id="amount" class="big" inputmode="decimal" placeholder="e.g. 60.00" autocomplete="off"></div>
-      </div>
-      <label class="req" style="margin-top:12px">Receipt photos or PDF</label>
-      <div class="photos" id="photos">
-        <label class="addph" for="file"><span>+</span>Add photo</label>
-      </div>
-      <input type="file" id="file" accept="image/*,application/pdf" multiple style="display:none">
-
-      <div style="margin-top:12px"><label for="claim_month">Claim month</label><select id="claim_month" style="max-width:220px"></select></div>
-
-      <details>
-        <summary>More details (optional)</summary>
-        <div class="grid" style="margin-top:8px">
-          <div><label for="expense_date">Date on receipt</label><input type="date" id="expense_date"></div>
-          <div><label for="merchant">Shop / clinic</label><input id="merchant" maxlength="120"></div>
-          <div><label for="receipt_no">Receipt no.</label><input id="receipt_no" maxlength="60"></div>
-        </div>
-        <div style="margin-top:8px"><label for="remark">Remark</label><input id="remark" maxlength="300"></div>
-      </details>
-
-      <div id="fmsg" class="msg hidden"></div>
-      <div class="row" style="margin-top:14px">
-        <button id="sub" type="submit" class="big" style="flex:1">Send</button>
-        <button id="notme" type="button" class="ghost">Not me</button>
-      </div>
-    </form>
-  </section>
-
-  <section id="s3" class="card hidden" style="max-width:640px;margin:16px auto">
-    <h2>Sent in this visit</h2>
-    <p class="muted" style="margin-top:-6px">Keep the reference number. HR checks every claim before payment.</p>
-    <div id="sent" class="list"></div>
+  <section id="s2" class="hidden" style="max-width:680px;margin:16px auto">
+    <div class="card">
+      <div class="row"><div><strong id="who"></strong><div class="muted" style="font-size:13px">These are your claims approved by DN. Upload the receipts for each claim. The system reads and checks them.</div></div>
+        <button id="notme" class="small ghost right" type="button">Not me</button></div>
+    </div>
+    <div id="list"></div>
   </section>
 </main>
 
-<script src="/demo-mock.js?v=20261104b"></script>
-<script src="/common.js?v=20261104b"></script>
+<script src="/demo-mock.js?v=20261104c"></script>
+<script src="/common.js?v=20261104c"></script>
 <script>
-let WHO = null; const SENT = []; let FILES = [];
+let WHO = null;
 
-async function init() {
-  let cats = [];
-  try { cats = (await api('/api/me')).categories || []; } catch {}
-  for (const m of recentMonths(6)) $('#claim_month').add(new Option(monthLabel(m), m));
-  for (const c of cats) $('#category').add(new Option(c, c));
-  $('#expense_date').max = todayMY();
-  try { const last = localStorage.getItem('dnrp_tc'); if (last) $('#tc').value = last; } catch {}
+const SAY = {
+  'Not submitted': c => 'Upload the receipts for this claim.',
+  'Cleared': c => c.read > c.approved ? `✓ Checked. Receipts RM ${rm(c.read)} cover the approved RM ${rm(c.approved)}. Nothing more to do.` : '✓ Checked. Receipts match the DN approval. Nothing more to do.',
+  'Short': c => `We read RM ${rm(c.read)} from your receipts. DN approved RM ${rm(c.approved)}. Please add receipts for the missing RM ${rm(c.approved - c.read)}, or remove a wrong photo and upload a clearer one.`,
+  'HR check': c => 'HR will check this claim because:',
+  'Cleared by HR': c => '✓ Checked by HR. Nothing more to do.',
+  'Rejected by HR': c => 'Not accepted by HR.'
+};
+
+async function load(tc) {
+  const r = await api('/api/my-claims', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tc_id: tc }) });
+  WHO = r; draw();
 }
 
 $('#idf').onsubmit = async (ev) => {
-  ev.preventDefault();
-  const msg = $('#idmsg'); msg.classList.add('hidden');
+  ev.preventDefault(); const msg = $('#idmsg'); msg.classList.add('hidden');
   try {
-    WHO = await api('/api/lookup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tc_id: $('#tc').value }) });
+    await load($('#tc').value);
     try { localStorage.setItem('dnrp_tc', WHO.tc_id); } catch {}
-    $('#who').textContent = `Sending as ${WHO.name} (${WHO.tc_id}).`;
     $('#s1').classList.add('hidden'); $('#s2').classList.remove('hidden');
   } catch (e) { showMsg(msg, 'err', e.message); }
 };
-$('#notme').onclick = () => {
-  WHO = null; $('#tc').value = ''; try { localStorage.removeItem('dnrp_tc'); } catch {}
-  $('#s2').classList.add('hidden'); $('#s1').classList.remove('hidden');
-};
+$('#notme').onclick = () => { WHO = null; try { localStorage.removeItem('dnrp_tc'); } catch {}; $('#tc').value = ''; $('#s2').classList.add('hidden'); $('#s1').classList.remove('hidden'); };
 
-$('#file').onchange = async () => {
-  for (const f of $('#file').files) {
-    if (FILES.length >= 10) { showMsg($('#fmsg'), 'err', 'Up to 10 photos per claim.'); break; }
-    FILES.push({ file: await shrinkImage(f), url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null, name: f.name });
+function draw() {
+  $('#who').textContent = `${WHO.name} (${WHO.tc_id})`;
+  if (!WHO.claims.length) { $('#list').innerHTML = '<div class="card muted">No DN-approved claims found for you yet. HR uploads the DN approvals each month. Please check again later.</div>'; return; }
+  let html = '', last = '';
+  for (const c of WHO.claims) {
+    if (c.month !== last) { html += `<div class="month">Claim month ${monthLabel(c.month)}</div>`; last = c.month; }
+    const locked = c.status === 'Cleared by HR' || c.status === 'Rejected by HR';
+    html += `<div class="claim" id="c-${c.id}">
+      <div class="top"><div><strong>${esc(c.category)}</strong><div class="muted" style="font-size:13px">Approved by DN</div></div>
+        <div style="text-align:right"><div class="amt">RM ${rm(c.approved)}</div><span class="chip ${STATUS_CHIP[c.status] || ''}">${esc(c.status === 'Short' ? 'Receipts short' : c.status)}</span></div></div>
+      <div class="say">${esc((SAY[c.status] || (() => ''))(c))}</div>
+      ${c.status === 'HR check' && c.flags.length ? '<ul>' + c.flags.map(f => `<li>${esc(f)}</li>`).join('') + '</ul>' : ''}
+      ${c.hr_note ? `<div class="say"><strong>HR note:</strong> ${esc(c.hr_note)}</div>` : ''}
+      ${c.files.length ? '<div class="files">' + c.files.map(f => `<div><span>📎 ${esc(f.name)}</span><span>${f.read === null ? '<span class="muted">not read</span>' : 'RM ' + rm(f.read)}
+          ${!locked && c.status !== 'Cleared' ? ` <button class="ghost danger" data-rm="${f.id}" data-c="${c.id}" type="button">Remove</button>` : ''}</span></div>`).join('') + '</div>' : ''}
+      ${!locked && c.status !== 'Cleared' ? `<label class="btn" style="margin-top:10px;display:inline-block">+ Add receipts<input type="file" accept="image/*,application/pdf" multiple data-up="${c.id}" style="display:none"></label>` : ''}
+      <div class="busy hidden" id="b-${c.id}"></div>
+      <div class="msg err hidden" id="e-${c.id}"></div>
+    </div>`;
   }
-  $('#file').value = ''; drawPhotos();
-};
-function drawPhotos() {
-  $$('#photos .ph').forEach(e => e.remove());
-  const add = $('#photos .addph');
-  FILES.forEach((p, i) => {
-    const d = document.createElement('div'); d.className = 'ph';
-    d.innerHTML = (p.url ? `<img src="${p.url}" alt="">` : `<div>PDF<br>${esc(p.name.slice(0, 14))}</div>`) + `<button type="button" title="Remove">×</button>`;
-    d.querySelector('button').onclick = () => { FILES.splice(i, 1); drawPhotos(); };
-    $('#photos').insertBefore(d, add);
+  $('#list').innerHTML = html;
+  $$('[data-up]').forEach(inp => inp.onchange = () => send(inp.dataset.up, [...inp.files]));
+  $$('[data-rm]').forEach(b => b.onclick = async () => {
+    if (!confirm('Remove this photo?')) return;
+    try { const r = await api(`/api/claims/${b.dataset.c}/photo/${b.dataset.rm}/remove`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tc_id: WHO.tc_id }) });
+      replace(r.claim); } catch (e) { alert(e.message); }
   });
 }
+function replace(nc) { const i = WHO.claims.findIndex(c => c.id === nc.id); if (i >= 0) WHO.claims[i] = { ...WHO.claims[i], ...nc }; draw(); }
 
-$('#f').onsubmit = async (ev) => {
-  ev.preventDefault();
-  const msg = $('#fmsg'); msg.classList.add('hidden');
-  const miss = [];
-  if (!$('#category').value) miss.push('category');
-  if (!$('#amount').value.trim()) miss.push('total amount');
-  if (!FILES.length) miss.push('at least one photo');
-  if (miss.length) { showMsg(msg, 'err', 'Please add: ' + miss.join(', ') + '.'); return; }
-  const fd = new FormData();
-  fd.set('tc_id', WHO.tc_id);
-  ['claim_month', 'category', 'amount', 'expense_date', 'merchant', 'receipt_no', 'remark'].forEach(k => fd.set(k, $('#' + k).value));
-  FILES.forEach(p => fd.append('file', p.file));
-  $('#sub').disabled = true; $('#sub').textContent = 'Sending…';
-  try {
-    const r = await api('/api/receipts', { method: 'POST', body: fd });
-    const amt = Number($('#amount').value.replace(/,/g, '')).toFixed(2);
-    showMsg(msg, 'ok', `Sent. Reference ${r.ref}. You can send the next claim.`);
-    SENT.unshift({ ref: r.ref, cat: $('#category').value, amt, n: FILES.length, month: $('#claim_month').value });
-    drawSent();
-    FILES = []; drawPhotos();
-    ['amount', 'expense_date', 'merchant', 'receipt_no', 'remark'].forEach(k => $('#' + k).value = '');
-    $('#category').value = '';
-  } catch (e) { showMsg(msg, 'err', e.message); }
-  finally { $('#sub').disabled = false; $('#sub').textContent = 'Send'; }
-};
-function drawSent() {
-  $('#s3').classList.remove('hidden');
-  $('#sent').innerHTML = SENT.map(s => `<div class="item"><div><strong>${esc(s.cat)}</strong> · RM ${esc(s.amt)}
-    <div class="muted">${s.n} photo${s.n > 1 ? 's' : ''} · Claim month ${monthLabel(s.month)}</div></div>
-    <div><span class="chip Accepted">${esc(s.ref)}</span></div></div>`).join('');
+async function send(claimId, files) {
+  const busy = $('#b-' + claimId), err = $('#e-' + claimId);
+  busy.classList.remove('hidden'); err.classList.add('hidden');
+  const errors = [];
+  for (let i = 0; i < files.length; i++) {
+    busy.textContent = `Reading receipt ${i + 1} of ${files.length}… please wait`;
+    try { const r = await uploadReceipt(claimId, WHO.tc_id, files[i]); WHO.claims[WHO.claims.findIndex(c => c.id === claimId)] = { ...r.claim }; }
+    catch (e) { errors.push(`${files[i].name}: ${e.message}`); }
+  }
+  draw();
+  if (errors.length) { const e2 = $('#e-' + claimId); e2.innerHTML = errors.map(esc).join('<br>'); e2.classList.remove('hidden'); }
 }
 
-init();
+try { const last = localStorage.getItem('dnrp_tc'); if (last) $('#tc').value = last; } catch {}
 </script>
 </body>
 </html>

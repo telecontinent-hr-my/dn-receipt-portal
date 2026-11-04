@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DN Receipt Check (HR)</title>
-<link rel="stylesheet" href="/app.css?v=20261104b">
+<title>DN Claim Check (HR)</title>
+<link rel="stylesheet" href="/app.css?v=20261104c">
+<style>.fl{font-size:12.5px;margin:3px 0 0;padding-left:16px}.nowrap{white-space:nowrap}</style>
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <div><h1>DN Receipt Check</h1><div class="sub">Telecontinent Sdn Bhd · Human Resources &amp; Administration</div></div>
+  <div><h1>DN Claim Check</h1><div class="sub">Telecontinent Sdn Bhd · Human Resources &amp; Administration</div></div>
   <div class="sub" id="who"></div>
 </div></header>
 
@@ -16,74 +17,40 @@
   <div id="gate" class="msg info">Loading…</div>
   <section id="app" class="hidden">
     <nav class="tabs">
-      <button data-tab="match" class="on">Match &amp; validate</button>
-      <button data-tab="rcpt">Receipts</button>
-      <button data-tab="add">Add for staff</button>
+      <button data-tab="claims" class="on">Claims</button>
+      <button data-tab="dn">Upload DN approvals</button>
       <button data-tab="staff">Staff list</button>
+      <button data-tab="ent">Entitlements</button>
       <button data-tab="log">Log</button>
     </nav>
 
-    <!-- MATCH -->
-    <div data-pane="match">
-      <div class="card">
-        <h2>1. DN approved workbook</h2>
-        <div class="grid">
-          <div><label for="wbFile">Workbook (.xlsx)</label><input type="file" id="wbFile" accept=".xlsx,.xls"></div>
-          <div><label for="wbSheet">Month sheet</label><select id="wbSheet" disabled></select></div>
-          <div><label for="wbMonth">Claim month</label><select id="wbMonth"></select></div>
-          <div><label for="oldM">Flag receipts older than (months)</label><input type="number" id="oldM" value="6" min="1" max="24"></div>
-        </div>
-        <div class="row" style="margin-top:12px"><button id="run" disabled>Match receipts</button><span class="muted" id="wbInfo"></span></div>
-        <div id="wbMsg" class="msg hidden"></div>
-      </div>
-
-      <div id="res" class="hidden">
-        <div class="tiles" id="tiles"></div>
-        <div class="card">
-          <div class="row">
-            <h2 style="margin:0" id="resTitle">Items to act on</h2>
-            <label class="row right" style="margin:0;font-weight:400;color:var(--ink)"><input type="checkbox" id="showAll" style="width:auto"> Show all lines</label>
-            <input id="q" placeholder="Search name / TC ID" style="width:200px">
-            <button class="ghost" id="exp">Export Excel</button>
-          </div>
-          <div class="tablewrap" style="margin-top:10px;max-height:70vh"><table id="resT"></table></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- RECEIPTS -->
-    <div data-pane="rcpt" class="hidden">
+    <!-- CLAIMS -->
+    <div data-pane="claims">
       <div class="card">
         <div class="row">
-          <div><label for="rMonth">Claim month</label><select id="rMonth"></select></div>
-          <div><label for="rStatus">Status</label><select id="rStatus"><option value="">All</option><option>Submitted</option><option>Accepted</option><option>Rejected</option><option>Withdrawn</option></select></div>
-          <div><label for="rQ">Search</label><input id="rQ" placeholder="Name / TC ID"></div>
-          <button class="ghost right" id="rLoad">Refresh</button>
+          <div><label for="cMonth">Claim month</label><select id="cMonth" style="min-width:160px"></select></div>
+          <div><label for="cFilter">Show</label><select id="cFilter">
+            <option value="act">Needs HR (HR check)</option><option value="Short">Receipts short</option><option value="Not submitted">Not submitted</option>
+            <option value="Cleared">Cleared</option><option value="all">All lines</option></select></div>
+          <div><label for="cQ">Search</label><input id="cQ" placeholder="Name / TC ID"></div>
+          <div class="right row"><button class="ghost" id="cReload" type="button">Refresh</button><button class="ghost" id="cExp" type="button">Export Excel</button></div>
         </div>
-        <div class="tablewrap" style="margin-top:12px;max-height:70vh"><table id="rT"></table></div>
       </div>
+      <div class="tiles" id="tiles"></div>
+      <div class="card"><div class="tablewrap" style="max-height:70vh"><table id="cT"></table></div></div>
     </div>
 
-    <!-- ADD FOR STAFF -->
-    <div data-pane="add" class="hidden">
+    <!-- DN UPLOAD -->
+    <div data-pane="dn" class="hidden">
       <div class="card">
-        <h2>Add a receipt for a staff member</h2>
-        <p class="muted" style="margin-top:-6px">Use this for receipts sent to HR by WhatsApp or email. The record shows "HR on behalf" and your email.</p>
-        <form id="af" novalidate>
-          <div class="grid">
-            <div><label class="req" for="a_tc">Staff</label><select id="a_tc" name="tc_id"></select></div>
-            <div><label class="req" for="a_month">Claim month</label><select id="a_month" name="claim_month"></select></div>
-            <div><label class="req" for="a_cat">Claim category</label><select id="a_cat" name="category"><option value="">Choose…</option></select></div>
-            <div><label for="a_date">Date on receipt</label><input type="date" id="a_date" name="expense_date"></div>
-            <div><label class="req" for="a_amt">Total amount (RM)</label><input id="a_amt" name="amount" inputmode="decimal"></div>
-            <div><label for="a_mer">Shop / clinic / provider</label><input id="a_mer" name="merchant"></div>
-            <div><label for="a_no">Receipt or invoice no.</label><input id="a_no" name="receipt_no"></div>
-          </div>
-          <div style="margin-top:12px"><label for="a_rem">Remark (who sent it, how)</label><textarea id="a_rem" name="remark" placeholder="e.g. Sent by staff on WhatsApp 14/10/2026"></textarea></div>
-          <div style="margin-top:12px"><label class="req" for="a_file">Receipt photos or PDF (you can pick several)</label><input type="file" id="a_file" name="file" accept="image/*,application/pdf" multiple></div>
-          <div id="aMsg" class="msg hidden"></div>
-          <button type="submit" id="aSub" style="margin-top:12px">Add receipt</button>
-        </form>
+        <h2>Upload the DN approved workbook</h2>
+        <p class="muted" style="margin-top:-6px">Pick the workbook from DN. Tick the month sheets to save. Saving a month again updates the amounts. Receipts already uploaded are kept.</p>
+        <input type="file" id="wbFile" accept=".xlsx,.xls" style="max-width:360px">
+        <div id="wbMsg" class="msg hidden"></div>
+        <div class="tablewrap hidden" id="wbWrap" style="margin-top:12px"><table id="wbT"></table></div>
+        <button id="wbSave" class="hidden" style="margin-top:12px">Save ticked months</button>
+        <h2 style="margin-top:20px">Months in the system</h2>
+        <div class="tablewrap"><table id="moT"></table></div>
       </div>
     </div>
 
@@ -91,9 +58,8 @@
     <div data-pane="staff" class="hidden">
       <div class="card">
         <h2>DN staff list</h2>
-        <p class="muted" style="margin-top:-6px">Only staff on this list can sign in and submit. The DN person no. links the staff to the "No" column of the DN workbook.
-          Upload an Excel or CSV file with the columns <strong>TC ID, Name, DN Person No</strong> (optional: <strong>Email</strong>, <strong>Active</strong> Y/N). Existing staff are updated. No one is deleted; set Active to N instead.
-          Staff submit with their TC ID only. Only active staff on this list are accepted.</p>
+        <p class="muted" style="margin-top:-6px">Only active staff on this list can see and upload claims. The DN person no. links the staff to the "No" column of the DN workbook.
+          Upload an Excel or CSV file with the columns <strong>TC ID, Name, DN Person No</strong> (optional: <strong>Email</strong>, <strong>Active</strong> Y/N). Existing staff are updated. No one is deleted; set Active to N instead.</p>
         <div class="row">
           <input type="file" id="sFile" accept=".xlsx,.xls,.csv" style="max-width:320px">
           <button class="ghost" id="sTpl" type="button">Download template</button>
@@ -101,6 +67,18 @@
         </div>
         <div id="sMsg" class="msg hidden"></div>
         <div class="tablewrap" style="margin-top:12px;max-height:60vh"><table id="sT"></table></div>
+      </div>
+    </div>
+
+    <!-- ENTITLEMENTS -->
+    <div data-pane="ent" class="hidden">
+      <div class="card">
+        <h2>Annual entitlements</h2>
+        <p class="muted" style="margin-top:-6px">Upload an Excel file with <strong>Person Number</strong> and the annual limits: Annual Outpatient Medical, Annual Dental, Annual Optical, Annual Car Roadtax, Annual Car Insurance, Annual Car Maintenance, Annual Office Parking, Annual Mobile Phone. Dental and Optical are added together for the DN "Optical/Dental" column. Other columns are ignored.
+          A claim goes to HR when the DN-approved amount for the year goes above the limit.</p>
+        <div class="row"><input type="file" id="eFile" accept=".xlsx,.xls" style="max-width:320px"><button id="eSave" disabled>Save entitlements</button></div>
+        <div id="eMsg" class="msg hidden"></div>
+        <div class="tablewrap" style="margin-top:12px;max-height:60vh"><table id="eT"></table></div>
       </div>
     </div>
 
@@ -112,209 +90,160 @@
 </main>
 
 <script src="/vendor/xlsx.full.min.js"></script>
-<script src="/demo-mock.js?v=20261104b"></script>
-<script src="/common.js?v=20261104b"></script>
-<script src="/match.js?v=20261104b"></script>
+<script src="/demo-mock.js?v=20261104c"></script>
+<script src="/common.js?v=20261104c"></script>
+<script src="/match.js?v=20261104c"></script>
 <script>
-const refOf = (id) => 'DNR-' + id.replace(/-/g, '').slice(0, 8).toUpperCase();
-let ME, STAFF = [], WB = null, RESULT = null, RCPTS = [], STAFF_PREVIEW = null;
-const sev = { Action: 'err', Check: 'warn', OK: 'ok' };
+let ME, STAFF = [], STAFF_PREVIEW = null, CLAIMS = [], WB = null, WBLINES = null, ENT_PREVIEW = null;
 
 async function init() {
   try { ME = await api('/api/me'); } catch (e) { showMsg($('#gate'), 'err', e.message); return; }
-  if (!ME.isHR) { showMsg($('#gate'), 'err', `HR access only. You are signed in as ${ME.email}.`); return; }
-  $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden');
-  $('#who').textContent = ME.email;
-  for (const m of recentMonths(18)) { $('#wbMonth').add(new Option(monthLabel(m), m)); $('#rMonth').add(new Option(monthLabel(m), m)); $('#a_month').add(new Option(monthLabel(m), m)); }
-  $('#rMonth').add(new Option('All months', ''));
-  for (const c of ME.categories) $('#a_cat').add(new Option(c, c));
-  $('#a_date').max = todayMY();
+  if (!ME.isHR) { showMsg($('#gate'), 'err', 'HR access only.'); return; }
+  $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden'); $('#who').textContent = ME.email;
   $$('.tabs button').forEach(b => b.onclick = () => tab(b.dataset.tab));
-  await loadStaff();
+  await loadStaff(); await loadMonths(); await loadClaims();
 }
-
 function tab(t) {
   $$('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   $$('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== t));
-  if (t === 'rcpt') loadReceipts();
-  if (t === 'log') loadLog();
+  if (t === 'log') loadLog(); if (t === 'ent') loadEnt(); if (t === 'dn') loadMonths();
+}
+async function loadStaff() { STAFF = (await api('/api/staff')).staff; renderStaff(STAFF, false); }
+
+// ---------- months ----------
+async function loadMonths() {
+  const r = await api('/api/dn/months');
+  const sel = $('#cMonth'), cur = sel.value;
+  sel.innerHTML = r.months.length ? r.months.map(m => `<option value="${m.month}">${monthLabel(m.month)}</option>`).join('') : '<option value="">No DN data yet</option>';
+  if (cur && r.months.some(m => m.month === cur)) sel.value = cur;
+  $('#moT').innerHTML = '<thead><tr><th>Month</th><th class="n">Claim lines</th><th class="n">DN approved (RM)</th><th class="n">Cleared</th></tr></thead><tbody>' +
+    (r.months.map(m => `<tr><td>${monthLabel(m.month)}</td><td class="n">${m.lines}</td><td class="n">${rm(m.approved)}</td><td class="n">${m.cleared}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">None yet.</td></tr>') + '</tbody>';
 }
 
-async function loadStaff() {
-  STAFF = (await api('/api/staff')).staff;
-  const sel = $('#a_tc'); sel.innerHTML = '<option value="">Choose…</option>';
-  STAFF.filter(s => s.active).forEach(s => sel.add(new Option(`${s.name} (${s.tc_id})`, s.tc_id)));
-  renderStaff(STAFF, false);
+// ---------- claims ----------
+$('#cMonth').onchange = loadClaims; $('#cFilter').onchange = drawClaims; $('#cQ').oninput = drawClaims; $('#cReload').onclick = loadClaims;
+async function loadClaims() {
+  const mo = $('#cMonth').value; if (!mo) { CLAIMS = []; drawClaims(); return; }
+  CLAIMS = (await api('/api/claims?month=' + mo)).claims; drawClaims();
 }
+const isClear = (s) => s === 'Cleared' || s === 'Cleared by HR';
+function drawClaims() {
+  const f = $('#cFilter').value, q = $('#cQ').value.trim().toLowerCase();
+  const cnt = (fn) => CLAIMS.filter(fn).length, sum = (arr) => arr.reduce((a, c) => a + c.approved, 0);
+  $('#tiles').innerHTML = [
+    ['Claim lines', CLAIMS.length], ['DN approved (RM)', rm(sum(CLAIMS))],
+    ['Cleared', cnt(c => isClear(c.status))], ['Needs HR', cnt(c => c.status === 'HR check'), true],
+    ['Receipts short', cnt(c => c.status === 'Short')], ['Not submitted', cnt(c => c.status === 'Not submitted')],
+    ['Rejected', cnt(c => c.status === 'Rejected by HR')], ['Not on staff list', cnt(c => !c.tc_id), true]
+  ].map(([k, v, a]) => `<div class="tile${a && v ? ' alert' : ''}"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  const rows = CLAIMS.filter(c => (f === 'all' || (f === 'act' ? c.status === 'HR check' : f === 'Cleared' ? isClear(c.status) : c.status === f))
+    && (!q || `${c.name} ${c.tc_id}`.toLowerCase().includes(q)));
+  $('#cT').innerHTML = `<thead><tr><th>Staff</th><th>TC ID</th><th>Category</th><th class="n">DN approved</th><th class="n">Receipts read</th><th>Status</th><th>Why</th><th>Receipts</th><th></th></tr></thead><tbody>` +
+    (rows.map(c => `<tr>
+      <td>${esc(c.name || '')}</td><td>${c.tc_id ? esc(c.tc_id) : '<span class="chip err">not on list</span>'}</td><td>${esc(c.category)}</td>
+      <td class="n">${rm(c.approved)}</td><td class="n">${c.files.length ? rm(c.read) : '-'}</td>
+      <td><span class="chip ${STATUS_CHIP[c.status] || ''}">${esc(c.status)}</span>${c.reviewed_by ? `<div class="muted" style="font-size:12px">${esc(c.reviewed_by)}</div>` : ''}</td>
+      <td>${c.flags.length ? '<ul class="fl">' + c.flags.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>' : ''}${c.status === 'Short' ? `<div style="font-size:12.5px">Short by RM ${rm(c.approved - c.read)}</div>` : ''}${c.hr_note ? `<div style="font-size:12.5px"><strong>Note:</strong> ${esc(c.hr_note)}</div>` : ''}</td>
+      <td class="nowrap">${c.files.map((x, i) => `<button class="small ghost" style="margin:1px" data-v="${c.id}" data-i="${i}" title="${esc(x.name)} · ${esc(x.method || '')}">${i + 1}: ${x.read === null ? '?' : rm(x.read)}</button>`).join('')}
+        <label class="btn small ghost" style="margin:1px">+<input type="file" multiple accept="image/*,application/pdf" data-up="${c.id}" style="display:none"></label></td>
+      <td class="nowrap">${c.hr_status ? `<button class="small ghost" data-undo="${c.id}">Undo</button>` : `<button class="small" data-ok="${c.id}">Clear</button> <button class="small danger" data-no="${c.id}">Reject</button>`}</td>
+    </tr>`).join('') || '<tr><td colspan="9" class="muted">Nothing here.</td></tr>') + '</tbody>';
+  $$('#cT [data-v]').forEach(b => b.onclick = () => { const c = CLAIMS.find(x => x.id === b.dataset.v);
+    openUrls(c.files.map(x => window.DEMO ? window.demoFileUrl(x.id) : `/api/claimfile/${x.id}`), `${c.name} · ${c.category}`); });
+  $$('#cT [data-ok]').forEach(b => b.onclick = () => review(b.dataset.ok, 'Cleared by HR', prompt('Note (optional):') || ''));
+  $$('#cT [data-no]').forEach(b => b.onclick = () => { const n = prompt('Reason for rejecting (staff will see this):'); if (n === null) return; if (!n.trim()) return alert('Please give a reason.'); review(b.dataset.no, 'Rejected by HR', n.trim()); });
+  $$('#cT [data-undo]').forEach(b => b.onclick = () => review(b.dataset.undo, '', ''));
+  $$('#cT [data-up]').forEach(inp => inp.onchange = async () => {
+    const c = CLAIMS.find(x => x.id === inp.dataset.up); const errs = [];
+    for (const f of inp.files) { try { await uploadReceipt(c.id, c.tc_id, f); } catch (e) { errs.push(f.name + ': ' + e.message); } }
+    if (errs.length) alert(errs.join('\n')); loadClaims();
+  });
+}
+async function review(id, decision, note) {
+  try { await api(`/api/claims/${id}/review`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decision, note }) }); loadClaims(); }
+  catch (e) { alert(e.message); }
+}
+$('#cExp').onclick = () => {
+  const mo = $('#cMonth').value, n = (s) => Math.round(s) / 100;
+  const head = ['Staff', 'TC ID', 'DN Person No', 'Category', 'DN approved (RM)', 'Receipts read (RM)', 'Status', 'Why', 'HR note', 'Reviewed by', 'Receipt files', 'DN source cells'];
+  const line = (c) => [c.name || '', c.tc_id || '', c.dn_person_no, c.category, n(c.approved), c.files.length ? n(c.read) : '', c.status, c.flags.join(' | '), c.hr_note || '', c.reviewed_by || '', c.files.map(f => f.name).join(', '), c.source_ref || ''];
+  const pay = CLAIMS.filter(c => isClear(c.status));
+  const wb = XLSX.utils.book_new();
+  const add = (name, aoa, money) => { const ws = XLSX.utils.aoa_to_sheet(aoa); const r = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = 1; R <= r.e.r; R++) for (const C of money) { const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })]; if (cell && typeof cell.v === 'number') cell.z = '#,##0.00'; }
+    ws['!autofilter'] = { ref: ws['!ref'] }; ws['!cols'] = aoa[0].map((_, i) => ({ wch: Math.min(60, Math.max(10, ...aoa.slice(0, 200).map(x => String(x[i] ?? '').length))) }));
+    XLSX.utils.book_append_sheet(wb, ws, name); };
+  add('For iPayroll (cleared)', [['Staff', 'TC ID', 'Category', 'Amount to pay (RM)'], ...pay.map(c => [c.name || '', c.tc_id || '', c.category, n(c.approved)]), ['TOTAL', '', '', n(pay.reduce((a, c) => a + c.approved, 0))]], [3]);
+  add('Needs HR', [head, ...CLAIMS.filter(c => c.status === 'HR check').map(line)], [4, 5]);
+  add('All lines', [head, ...CLAIMS.map(line)], [4, 5]);
+  XLSX.writeFile(wb, `DN Claim Check ${mo}.xlsx`);
+};
 
-// ---------- workbook ----------
+// ---------- DN workbook upload ----------
 $('#wbFile').onchange = async () => {
   const f = $('#wbFile').files[0]; if (!f) return;
   try {
-    WB = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: false });
-    const sel = $('#wbSheet'); sel.innerHTML = '';
-    const months = WB.SheetNames.filter(n => DNMatch.sheetMonth(n));
-    if (!months.length) throw new Error('No month sheets (e.g. "Oct-26") found in this workbook.');
-    months.forEach(n => sel.add(new Option(n, n)));
-    sel.disabled = false; $('#run').disabled = false;
-    // default: the month in the file name (e.g. "Oct_2026_Telecontinent.xlsx"), else the latest sheet with amounts
-    Object.keys(sheetCache).forEach(k => delete sheetCache[k]);
+    WB = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    const sheets = WB.SheetNames.filter(n => DNMatch.sheetMonth(n)).map(n => {
+      const r = DNMatch.readSheet(XLSX.utils.sheet_to_json(WB.Sheets[n], { header: 1, raw: true, defval: null }), n);
+      return { name: n, month: DNMatch.sheetMonth(n), r };
+    }).filter(s => s.r.ok && s.r.lines.length);
+    if (!sheets.length) throw new Error('No month sheets with approved amounts found.');
+    WBLINES = { file: f.name, sheets };
     const fileMonth = DNMatch.sheetMonth(f.name.replace(/_/g, ' '));
-    const byName = months.find(n => DNMatch.sheetMonth(n) === fileMonth);
-    const withData = months.filter(n => (readSheet(n).lines || []).length);
-    sel.value = byName || withData[withData.length - 1] || months[months.length - 1];
-    sheetPicked();
-    $('#wbInfo').textContent = `${f.name}: ${WB.SheetNames.length} sheets, ${months.length} month sheets.`;
-    $('#wbMsg').classList.add('hidden');
+    $('#wbT').innerHTML = '<thead><tr><th></th><th>Sheet</th><th>Month</th><th class="n">Lines</th><th class="n">Approved (RM)</th><th>Problems</th></tr></thead><tbody>' +
+      sheets.map((s, i) => `<tr><td><input type="checkbox" data-i="${i}" ${!fileMonth || s.month <= fileMonth ? 'checked' : ''} style="width:auto"></td><td>${esc(s.name)}</td><td>${monthLabel(s.month)}</td>
+        <td class="n">${s.r.lines.length}</td><td class="n">${rm(s.r.lines.reduce((a, l) => a + l.sen, 0))}</td><td class="muted" style="font-size:12px">${esc(s.r.problems.join(' '))}</td></tr>`).join('') + '</tbody>';
+    $('#wbWrap').classList.remove('hidden'); $('#wbSave').classList.remove('hidden');
+    showMsg($('#wbMsg'), 'info', `${sheets.length} month sheets with amounts.` + (fileMonth ? ` Months after ${monthLabel(fileMonth)} (from the file name) are not ticked, because they may not be final.` : ''));
   } catch (e) { showMsg($('#wbMsg'), 'err', 'Cannot read the workbook. ' + e.message); }
 };
-$('#wbSheet').onchange = sheetPicked;
-function sheetPicked() {
-  const m = DNMatch.sheetMonth($('#wbSheet').value);
-  if (m && ![...$('#wbMonth').options].some(o => o.value === m)) $('#wbMonth').add(new Option(monthLabel(m), m));
-  if (m) $('#wbMonth').value = m;
-}
-const sheetCache = {};
-function readSheet(n) {
-  if (!sheetCache[n]) sheetCache[n] = DNMatch.readSheet(XLSX.utils.sheet_to_json(WB.Sheets[n], { header: 1, raw: true, defval: null }), n);
-  return sheetCache[n];
-}
-
-$('#run').onclick = async () => {
-  const sheet = $('#wbSheet').value, month = $('#wbMonth').value;
-  const cur = readSheet(sheet);
-  if (!cur.ok) { showMsg($('#wbMsg'), 'err', cur.problems.join(' ')); return; }
-  $('#run').disabled = true; $('#run').textContent = 'Matching…';
+$('#wbSave').onclick = async () => {
+  const pick = $$('#wbT input:checked').map(x => WBLINES.sheets[+x.dataset.i]);
+  if (!pick.length) return alert('Tick at least one month.');
+  const lines = pick.flatMap(s => s.r.lines.map(l => ({ month: s.month, personNo: l.personNo, name: l.name, category: l.category, sen: l.sen, ref: `${l.sheet}!${l.col}${l.row}` })));
+  $('#wbSave').disabled = true;
   try {
-    const [rc] = await Promise.all([api('/api/receipts'), loadStaff()]);
-    const others = WB.SheetNames.filter(n => n !== sheet && DNMatch.sheetMonth(n))
-      .map(n => ({ month: DNMatch.sheetMonth(n), lines: readSheet(n).lines || [] }));
-    RESULT = DNMatch.match({ month, dnLines: cur.lines, receipts: rc.receipts, staff: STAFF, otherMonths: others, oldMonths: +$('#oldM').value || 6 });
-    RESULT.month = month; RESULT.sheet = sheet; RESULT.problems = cur.problems; RESULT.receipts = rc.receipts;
-    if (cur.problems.length) showMsg($('#wbMsg'), 'err', 'Workbook problems found. These cells were not counted:', cur.problems);
-    else $('#wbMsg').classList.add('hidden');
-    renderResult();
+    const r = await api('/api/dn/upload', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file_name: WBLINES.file, lines }) });
+    showMsg($('#wbMsg'), 'ok', `Saved ${r.lines} claim lines for ${r.months.map(monthLabel).join(', ')}.` + (r.unmatched ? ` ${r.unmatched} lines belong to DN staff who are not on the staff list (add them in Staff list).` : ''));
+    await loadMonths(); await loadClaims();
   } catch (e) { showMsg($('#wbMsg'), 'err', e.message); }
-  finally { $('#run').disabled = false; $('#run').textContent = 'Match receipts'; }
+  finally { $('#wbSave').disabled = false; }
 };
 
-function renderResult() {
-  const s = RESULT.summary;
-  $('#res').classList.remove('hidden');
-  $('#tiles').innerHTML = [
-    ['DN approved (RM)', rm(s.dnTotal)], ['DN staff / lines', `${s.dnStaff} / ${s.dnLines}`],
-    ['Receipts (RM)', rm(s.receiptTotal)], ['Receipts received', s.receiptCount],
-    ['Supported (RM)', rm(s.supportedTotal)], ['Not yet checked by HR', s.pending],
-    ['Lines to act on', s.actions, s.actions > 0], ['Lines to check', s.checks, s.checks > 0], ['Lines OK', s.ok]
-  ].map(([k, v, a]) => `<div class="tile${a ? ' alert' : ''}"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
-  drawTable();
-}
-$('#showAll').onchange = drawTable; $('#q').oninput = drawTable;
-
-function drawTable() {
-  const all = $('#showAll').checked, q = $('#q').value.trim().toLowerCase();
-  const rows = RESULT.lines.filter(x => (all || x.exception) && (!q || `${x.name} ${x.tc}`.toLowerCase().includes(q)));
-  $('#resTitle').textContent = all ? `All lines (${rows.length})` : `Items to act on or check (${rows.length})`;
-  $('#resT').innerHTML = `<thead><tr><th>Staff</th><th>TC ID</th><th>Category</th><th class="n">DN approved</th><th class="n">Receipts</th><th class="n">Difference</th><th class="n">Supported</th><th>Result</th><th>What to do</th><th>Receipts</th></tr></thead><tbody>` +
-    (rows.length ? rows.map(x => `<tr>
-      <td>${esc(x.name)}</td><td>${x.tc.startsWith('DN#') ? '<span class="muted">not on list</span>' : esc(x.tc)}</td><td>${esc(x.category)}</td>
-      <td class="n">${x.dn ? rm(x.dn) : '-'}</td><td class="n">${x.rc ? rm(x.rc) : '-'}</td><td class="n">${x.rc - x.dn ? rm(x.rc - x.dn) : '0.00'}</td><td class="n">${rm(x.supported)}</td>
-      <td><span class="chip ${sev[x.severity]}">${esc(x.status)}</span>${x.pending ? `<div class="muted">${x.pending} not checked</div>` : ''}</td>
-      <td>${esc(advice(x))}${x.issues.length ? '<ul style="margin:4px 0 0;padding-left:16px">' + x.issues.map(i => `<li>${esc(i)}</li>`).join('') + '</ul>' : ''}${x.note ? `<div class="muted">${esc(x.note)}</div>` : ''}</td>
-      <td>${x.receipts.map(r => `<button class="small ghost" style="margin:1px" data-view="${r.id}" data-n="${r.photos || 1}" data-t="${esc(x.name + ' · ' + r.category)}">RM ${rm(r.amount_sen)}${(r.photos || 1) > 1 ? ' · ' + r.photos + ' photos' : ''}</button>`).join('')}</td>
-    </tr>`).join('') : '<tr><td colspan="10" class="muted">Nothing to act on.</td></tr>') + '</tbody>';
-  $$('#resT [data-view]').forEach(b => b.onclick = () => openFile(b.dataset.view, b.dataset.t, +b.dataset.n));
-}
-
-function advice(x) {
-  return ({
-    'No receipt': 'Ask staff to submit the receipt before payment.',
-    'Receipts short': `Receipts cover RM ${rm(x.rc)} only. Ask for the missing RM ${rm(x.dn - x.rc)} or pay up to the receipts.`,
-    'No DN approval': 'Do not pay under this month. Check the DN approval.',
-    'Staff not on list': 'Add this staff to the staff list.',
-    'Supported in group': 'Amount is supported. DN used a different column.',
-    'Supported': x.issues.length ? 'Supported, but check the points below.' : 'OK.'
-  })[x.status] || '';
-}
-
-$('#exp').onclick = () => {
-  const r = RESULT, s = r.summary, n = (sen) => Math.round(sen) / 100;
-  const sum = [['DN Receipt Check'], ['Claim month', monthLabel(r.month)], ['DN sheet', r.sheet], ['Run by', ME.email], ['Run at', new Date().toLocaleString('en-MY')], [],
-    ['DN approved (RM)', n(s.dnTotal)], ['Receipts (RM)', n(s.receiptTotal)], ['Supported (RM)', n(s.supportedTotal)],
-    ['DN staff', s.dnStaff], ['DN lines', s.dnLines], ['Receipts received', s.receiptCount], ['Not yet checked by HR', s.pending],
-    ['Lines to act on', s.actions], ['Lines to check', s.checks], ['Lines OK', s.ok], [], ['Workbook problems'], ...(r.problems.length ? r.problems.map(p => [p]) : [['None']])];
-  const head = ['Staff', 'TC ID', 'DN Person No', 'Category', 'DN approved (RM)', 'Receipts (RM)', 'Difference (RM)', 'Supported (RM)', 'Result', 'Level', 'What to do', 'Details', 'Receipts count', 'Not checked', 'DN source cells'];
-  const line = (x) => [x.name, x.tc.startsWith('DN#') ? '' : x.tc, x.personNo, x.category, n(x.dn), n(x.rc), n(x.rc - x.dn), n(x.supported), x.status, x.severity, advice(x), [...x.issues, x.note].filter(Boolean).join(' | '), x.receipts.length, x.pending, x.dnRefs.join(', ')];
-  const rc = r.receipts.filter(z => z.claim_month === r.month);
-  const rHead = ['Ref', 'Staff', 'TC ID', 'Category', 'Receipt date', 'Total amount (RM)', 'Photos', 'Shop / provider', 'Receipt no.', 'Status', 'HR note', 'Channel', 'Submitted by', 'Submitted at', 'File', 'Remark'];
-  const rRow = (z) => [refOf(z.id), z.staff_name || '', z.tc_id, z.category, z.expense_date || '', n(z.amount_sen), z.photos || 1, z.merchant || '', z.receipt_no || '', z.status, z.hr_note || '', z.channel, z.submitted_by, z.submitted_at, z.file_name, z.remark || ''];
-  const wb = XLSX.utils.book_new();
-  const add = (name, aoa, money = []) => {
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    for (let R = 1; R <= range.e.r; R++) for (const C of money) { const c = ws[XLSX.utils.encode_cell({ r: R, c: C })]; if (c && typeof c.v === 'number') c.z = '#,##0.00'; }
-    if (aoa[0] && aoa[0].length > 2) ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: range.e.r, c: aoa[0].length - 1 } }) };
-    ws['!cols'] = aoa[0].map((_, i) => ({ wch: Math.min(60, Math.max(10, ...aoa.slice(0, 200).map(row => String(row[i] ?? '').length))) }));
-    XLSX.utils.book_append_sheet(wb, ws, name);
-  };
-  const ex = r.lines.filter(x => x.exception);
-  const tot = (arr) => ['TOTAL', '', '', '', n(arr.reduce((a, x) => a + x.dn, 0)), n(arr.reduce((a, x) => a + x.rc, 0)), n(arr.reduce((a, x) => a + x.rc - x.dn, 0)), n(arr.reduce((a, x) => a + x.supported, 0))];
-  add('Summary', sum);
-  add('To act on', [head, ...ex.map(line), tot(ex)], [4, 5, 6, 7]);
-  add('All lines', [head, ...r.lines.map(line), tot(r.lines)], [4, 5, 6, 7]);
-  add('Receipts', [rHead, ...rc.map(rRow)], [5]);
-  XLSX.writeFile(wb, `DN Receipt Check ${r.month}.xlsx`);
-};
-
-// ---------- receipts ----------
-$('#rLoad').onclick = loadReceipts; $('#rMonth').onchange = loadReceipts; $('#rStatus').onchange = drawReceipts; $('#rQ').oninput = drawReceipts;
-async function loadReceipts() {
-  const m = $('#rMonth').value;
-  RCPTS = (await api('/api/receipts' + (m ? `?month=${m}` : ''))).receipts; drawReceipts();
-}
-function drawReceipts() {
-  const st = $('#rStatus').value, q = $('#rQ').value.trim().toLowerCase();
-  const rows = RCPTS.filter(r => (!st || r.status === st) && (!q || `${r.staff_name} ${r.tc_id}`.toLowerCase().includes(q)));
-  $('#rT').innerHTML = `<thead><tr><th>Ref</th><th>Staff</th><th>TC ID</th><th>Month</th><th>Category</th><th>Receipt date</th><th class="n">Amount</th><th>Shop / no.</th><th>Status</th><th>Sent by</th><th></th></tr></thead><tbody>` +
-    (rows.length ? rows.map(r => `<tr>
-      <td style="white-space:nowrap">${refOf(r.id)}</td><td>${esc(r.staff_name || '')}</td><td>${esc(r.tc_id)}</td><td>${monthLabel(r.claim_month)}</td><td>${esc(r.category)}</td><td>${r.expense_date ? fmtDate(r.expense_date) : '-'}</td>
-      <td class="n">${rm(r.amount_sen)}</td><td>${esc(r.merchant || '')}${r.receipt_no ? '<div class="muted">' + esc(r.receipt_no) + '</div>' : ''}${r.remark ? '<div class="muted">' + esc(r.remark) + '</div>' : ''}</td>
-      <td><span class="chip ${r.status}">${r.status}</span>${r.hr_note ? '<div class="muted">' + esc(r.hr_note) + '</div>' : ''}</td>
-      <td>${esc(r.channel)}<div class="muted">${esc(r.submitted_by)}</div></td>
-      <td style="white-space:nowrap"><button class="small ghost" data-view="${r.id}" data-n="${r.photos || 1}" data-t="${esc((r.staff_name || r.tc_id) + ' · ' + r.category)}">View${(r.photos || 1) > 1 ? ' (' + r.photos + ')' : ''}</button>
-        ${r.status !== 'Withdrawn' ? `<button class="small" data-acc="${r.id}" ${r.status === 'Accepted' ? 'disabled' : ''}>Accept</button>
-        <button class="small danger" data-rej="${r.id}" ${r.status === 'Rejected' ? 'disabled' : ''}>Reject</button>` : ''}</td>
-    </tr>`).join('') : '<tr><td colspan="11" class="muted">No receipts.</td></tr>') + '</tbody>';
-  $$('#rT [data-view]').forEach(b => b.onclick = () => openFile(b.dataset.view, b.dataset.t, +b.dataset.n));
-  $$('#rT [data-acc]').forEach(b => b.onclick = () => review(b.dataset.acc, 'Accepted', ''));
-  $$('#rT [data-rej]').forEach(b => b.onclick = () => {
-    const note = prompt('Reason for rejecting (the staff will see this):'); if (note === null) return;
-    if (!note.trim()) { alert('Please give a reason.'); return; }
-    review(b.dataset.rej, 'Rejected', note.trim());
-  });
-}
-async function review(id, status, note) {
-  try { await api(`/api/receipts/${id}/review`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status, note }) }); await loadReceipts(); }
-  catch (e) { alert(e.message); }
-}
-
-// ---------- add for staff ----------
-$('#af').onsubmit = async (ev) => {
-  ev.preventDefault();
-  const fd = new FormData($('#af')), msg = $('#aMsg');
-  const picked = [...$('#a_file').files];
-  if (!fd.get('tc_id') || !fd.get('category') || !String(fd.get('amount')).trim() || !picked.length) { showMsg(msg, 'err', 'Fill in all fields marked *.'); return; }
-  fd.delete('file'); for (const f of picked) fd.append('file', await shrinkImage(f));
-  $('#aSub').disabled = true;
+// ---------- entitlements ----------
+const ENT_MAP = { annualoutpatientmedical: ['Medical'], annualdental: ['Optical/Dental'], annualoptical: ['Optical/Dental'], annualcarroadtax: ['Car Road Tax'],
+  annualcarinsurance: ['Car Insurance'], annualcarmaintenance: ['Car Maintenance'], annualofficeparking: ['Parking (Office)'], annualmobilephone: ['Handphone'] };
+$('#eFile').onchange = async () => {
+  const f = $('#eFile').files[0]; if (!f) return;
   try {
-    await api('/api/receipts', { method: 'POST', body: fd });
-    showMsg(msg, 'ok', `Receipt added for ${$('#a_tc').selectedOptions[0].text}.`);
-    ['a_date', 'a_amt', 'a_mer', 'a_no', 'a_rem', 'a_file'].forEach(k => $('#' + k).value = '');
-  } catch (e) { showMsg(msg, 'err', e.message); }
-  finally { $('#aSub').disabled = false; }
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    const out = new Map();
+    for (const n of wb.SheetNames) {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '' });
+      for (const o of rows) {
+        const keys = Object.keys(o); const pk = keys.find(k => k.toLowerCase().replace(/[^a-z]/g, '') === 'personnumber'); if (!pk || !o[pk]) continue;
+        for (const k of keys) { const cats = ENT_MAP[k.toLowerCase().replace(/[^a-z]/g, '')]; if (!cats) continue;
+          const v = Number(String(o[k]).replace(/,/g, '')); if (!isFinite(v)) continue;
+          for (const c of cats) { const key = `${o[pk]}|${c}`; out.set(key, (out.get(key) || 0) + Math.round(v * 100)); } }
+      }
+      if (out.size) break;
+    }
+    ENT_PREVIEW = [...out.entries()].map(([k, v]) => { const [p, c] = k.split('|'); return { dn_person_no: p, category: c, annual_sen: v }; });
+    if (!ENT_PREVIEW.length) throw new Error('No "Person Number" column with annual limits found.');
+    drawEnt(ENT_PREVIEW); $('#eSave').disabled = false;
+    showMsg($('#eMsg'), 'info', `${new Set(ENT_PREVIEW.map(r => r.dn_person_no)).size} staff, ${ENT_PREVIEW.length} limits read. Check, then click Save.`);
+  } catch (e) { showMsg($('#eMsg'), 'err', e.message); }
 };
+$('#eSave').onclick = async () => { try { const r = await api('/api/entitlements', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rows: ENT_PREVIEW }) });
+  showMsg($('#eMsg'), 'ok', `${r.saved} limits saved.`); $('#eSave').disabled = true; loadEnt(); } catch (e) { showMsg($('#eMsg'), 'err', e.message); } };
+async function loadEnt() { drawEnt((await api('/api/entitlements')).rows); }
+function drawEnt(rows) {
+  const name = (p) => (STAFF.find(s => String(s.dn_person_no) === String(p)) || {}).name || '';
+  $('#eT').innerHTML = '<thead><tr><th>DN Person No</th><th>Staff</th><th>Category</th><th class="n">Annual limit (RM)</th></tr></thead><tbody>' +
+    (rows.map(r => `<tr><td>${esc(r.dn_person_no)}</td><td>${esc(name(r.dn_person_no))}</td><td>${esc(r.category)}</td><td class="n">${rm(r.annual_sen)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No entitlements yet.</td></tr>') + '</tbody>';
+}
 
-// ---------- staff list ----------
 function renderStaff(list, preview) {
   $('#sT').innerHTML = `<thead><tr><th>TC ID</th><th>Name</th><th>DN Person No</th><th>Email</th><th>Active</th></tr></thead><tbody>` +
     (list.length ? list.map(s => `<tr><td>${esc(s.tc_id)}</td><td>${esc(s.name)}</td><td>${esc(s.dn_person_no || '')}</td><td>${esc(s.email || '')}</td><td>${s.active === 0 ? 'No' : 'Yes'}</td></tr>`).join('')
@@ -348,13 +277,13 @@ $('#sSave').onclick = async () => {
   } catch (e) { showMsg($('#sMsg'), 'err', e.message, e.details); }
 };
 
+
 // ---------- log ----------
 async function loadLog() {
   const log = (await api('/api/audit')).log;
   $('#lT').innerHTML = '<thead><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr></thead><tbody>' +
     log.map(l => `<tr><td style="white-space:nowrap">${esc(new Date(l.at).toLocaleString('en-MY'))}</td><td>${esc(l.actor)}</td><td>${esc(l.action)}</td><td class="muted">${esc(l.detail || '')}</td></tr>`).join('') + '</tbody>';
 }
-
 init();
 </script>
 </body>

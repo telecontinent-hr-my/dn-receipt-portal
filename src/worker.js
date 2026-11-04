@@ -1,3 +1,4 @@
+import { claimRoutes } from './claims.js';
 // DN Receipt Portal - Cloudflare Worker API
 // Telecontinent Sdn Bhd - Human Resources & Administration
 //
@@ -16,7 +17,7 @@ export const CATEGORIES = [
 ];
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     // Staff worker sends HR pages to the HR worker; HR worker opens on the HR page.
     if (env.ROLE === 'staff' && /^\/hr(\.html)?$/.test(url.pathname) && env.HR_URL) return Response.redirect(env.HR_URL, 302);
@@ -30,6 +31,8 @@ export default {
       if (url.pathname === '/api/logout' && request.method === 'POST') return new Response('{"ok":true}', { headers: {
         'content-type': 'application/json', 'set-cookie': `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` } });
       const user = await identify(request, env);
+      const cr = await claimRoutes(request, env, url, user, ctx);
+      if (cr) return cr;
       // Open submission (staff worker only): TC ID check and receipt upload need no login.
       if (env.ROLE !== 'hr' && !user?.isHR) {
         if (url.pathname === '/api/lookup' && request.method === 'POST') return await openLookup(request, env);

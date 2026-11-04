@@ -15,6 +15,23 @@ To add or remove an HR user: change both the Access policy "DN Receipt HR users"
 
 ---
 
+## How it works (from Nov 2026)
+
+1. **HR uploads the DN approved workbook** (HR page → Upload DN approvals). Tick the month sheets to save. Each staff + category with an amount becomes one claim line. Uploading the same month again updates the amounts; receipts already uploaded are kept.
+2. **Staff enter their TC ID** on the staff page. They see their DN-approved claims for the latest 3 months and upload receipts for each claim (photos or PDFs, many per claim).
+3. **The system reads each receipt** and sets the status:
+   - PDFs with text (Touch 'n Go / toll statements, parking statements): the amount is taken from the text. For toll statements only the toll lines count (ANPR "Total Amount" and PayDirect / RFID lines).
+   - Photos and scanned PDFs: Cloudflare Workers AI (`@cf/mistralai/mistral-small-3.1-24b-instruct`, free daily allowance of about 200 images a day) reads the amount.
+   - The AI also checks every file: is it a receipt, does it fit the category, and for Medical / Optical / Dental / Swab test, is the patient the staff or a child of the staff (spouse is not covered).
+   - The same file can never be used twice (any claim, any staff).
+   - Annual entitlement (HR page → Entitlements): when the DN-approved amount for the year goes above the limit, the claim goes to HR.
+4. **Status**: *Cleared* (receipts cover the DN amount and nothing is flagged) · *Receipts short* (staff must add more) · *HR check* (with the reason) · *Not submitted*. HR can Clear or Reject any line; a rejected line shows the reason to the staff.
+5. **Export Excel** on the Claims tab gives a "For iPayroll (cleared)" sheet, a "Needs HR" sheet and all lines.
+
+If the AI daily allowance runs out, photos read as "amount could not be read" and go to HR check. Nothing is cleared without a reading.
+
+---
+
 ## What the portal checks
 
 For the claim month you choose, each staff member and claim category gets one line. The line compares the **DN approved amount** with the **receipts received**.
