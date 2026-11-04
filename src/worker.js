@@ -18,6 +18,9 @@ export const CATEGORIES = [
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Staff worker sends HR pages to the HR worker; HR worker opens on the HR page.
+    if (env.ROLE === 'staff' && /^\/hr(\.html)?$/.test(url.pathname) && env.HR_URL) return Response.redirect(env.HR_URL, 302);
+    if (env.ROLE === 'hr' && url.pathname === '/') return Response.redirect(new URL('/hr.html', url).toString(), 302);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     try {
       if (url.pathname === '/api/login' && request.method === 'POST') return await login(request, env);
@@ -53,12 +56,13 @@ async function identify(request, env) {
   const hrList = (env.HR_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
   let email = null;
   const token = request.headers.get('Cf-Access-Jwt-Assertion') || cookie(request, 'CF_Authorization');
-  if (token && env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD) email = await verifyAccessJwt(token, env).catch(() => null);
+  if (env.ROLE !== 'staff' && token && env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD) email = await verifyAccessJwt(token, env).catch(() => null);
   if (!email && env.DEV_MODE === '1') email = request.headers.get('x-dev-user') || env.DEV_USER_EMAIL || null; // local testing only
   if (email) {
     email = email.trim().toLowerCase();
     if (hrList.includes(email)) return { email, isHR: true, staff: null };
   }
+  if (env.ROLE === 'hr') return null; // HR worker: Access login only
   // staff session
   const tc = await readSession(cookie(request, SESSION_COOKIE), env);
   if (tc) {

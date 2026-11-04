@@ -2,7 +2,12 @@ name = "dn-receipt-portal"
 main = "src/worker.js"
 compatibility_date = "2024-11-01"
 
-# Pages (index.html, hr.html) are served from /public. /api/* goes to the worker.
+# Two workers are deployed from this code, sharing one database and one file bucket:
+#   dn-receipt-portal  (this top section)  - staff page, open to staff
+#   dn-receipt-hr      ([env.hr] below)     - HR page, whole worker behind Cloudflare Access
+# Deploy commands:  npx wrangler deploy            (staff)
+#                   npx wrangler deploy --env hr   (HR)
+
 [assets]
 directory = "./public"
 binding = "ASSETS"
@@ -17,8 +22,31 @@ binding = "RECEIPTS"
 bucket_name = "dn-receipts"
 
 [vars]
-# HR users who can see all receipts and run the matching (comma separated)
+ROLE = "staff"
+HR_URL = "https://dn-receipt-hr.hairul-izwan.workers.dev/hr.html"
+
+# ---------------- HR worker ----------------
+[env.hr]
+name = "dn-receipt-hr"
+
+[env.hr.assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[env.hr.d1_databases]]
+binding = "DB"
+database_name = "dn-receipts"
+database_id = "1716fa36-965a-4262-a09f-3f423c4d60fa"
+
+[[env.hr.r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "dn-receipts"
+
+[env.hr.vars]
+ROLE = "hr"
+STAFF_URL = "https://dn-receipt-portal.hairul-izwan.workers.dev/"
+# HR users who can see all receipts and run the matching (comma separated). Must also be allowed in the Access policy.
 HR_EMAILS = "hairul.izwan@telecontinent.com.my"
-# Access application protects only the path hr.html. Values from Zero Trust > Access > Applications > (this app) > Overview
-ACCESS_TEAM_DOMAIN = "REPLACE.cloudflareaccess.com"
+# Zero Trust > Access settings (team domain) and Access > Applications > (HR app) > Overview (AUD tag)
+ACCESS_TEAM_DOMAIN = "dawn-flower-2e1b.cloudflareaccess.com"
 ACCESS_AUD = "REPLACE_WITH_APPLICATION_AUDIENCE_TAG"
