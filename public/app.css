@@ -1,0 +1,62 @@
+:root{
+  --bg:#f4f6f9; --card:#fff; --ink:#1b2430; --muted:#5d6b7c; --line:#dde3ea;
+  --brand:#0b4ea2; --brand-ink:#fff; --brand-soft:#e7effa;
+  --ok:#1d7a46; --ok-soft:#e5f4ec; --warn:#9a5b00; --warn-soft:#fdf2dc;
+  --err:#b3261e; --err-soft:#fbe7e5; --info:#36506e; --info-soft:#eaf0f6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",Roboto,Arial,sans-serif}
+header.top{background:var(--brand);color:var(--brand-ink);padding:14px 16px}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+header.top h1{font-size:18px;margin:0;font-weight:600;letter-spacing:.2px}
+header.top .sub{font-size:13px;opacity:.85}
+.wrap{max-width:1180px;margin:0 auto}
+main.wrap{padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 12px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px;font-weight:600}
+input,select,textarea{width:100%;font:inherit;padding:9px 10px;border:1px solid #c5ced9;border-radius:7px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
+textarea{min-height:60px}
+.req::after{content:" *";color:var(--err)}
+button,.btn{font:inherit;font-weight:600;border:1px solid var(--brand);background:var(--brand);color:#fff;padding:9px 16px;border-radius:7px;cursor:pointer;text-decoration:none;display:inline-block}
+button.ghost,.btn.ghost{background:#fff;color:var(--brand)}
+button.danger{background:#fff;color:var(--err);border-color:var(--err)}
+button.small,.btn.small{padding:4px 10px;font-size:13px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.right{margin-left:auto}
+.muted{color:var(--muted)}
+.msg{padding:10px 12px;border-radius:7px;margin:10px 0;font-size:14px}
+.msg.ok{background:var(--ok-soft);color:var(--ok)}
+.msg.err{background:var(--err-soft);color:var(--err)}
+.msg.info{background:var(--info-soft);color:var(--info)}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.chip.Submitted{background:var(--info-soft);color:var(--info)}
+.chip.Accepted,.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.Rejected,.chip.err{background:var(--err-soft);color:var(--err)}
+.chip.Withdrawn{background:#eee;color:#666}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;background:#fff}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:#f0f3f7;font-weight:600;position:sticky;top:0;white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tabs button{background:none;color:var(--muted);border:0;border-bottom:3px solid transparent;border-radius:0;padding:10px 14px}
+.tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
+.tiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px}
+.tile{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .v{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.tile.alert .v{color:var(--err)}
+.list .item{border-top:1px solid var(--line);padding:10px 0;display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.list .item:first-child{border-top:0}
+.hidden{display:none!important}
+dialog{border:0;border-radius:10px;padding:0;max-width:min(900px,96vw);width:100%}
+dialog .head{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+dialog .body{padding:0;height:75vh;background:#333}
+dialog iframe,dialog img{width:100%;height:100%;border:0;object-fit:contain;background:#333}
+@media (max-width:600px){ main.wrap{padding:12px} .card{padding:12px} }

@@ -1,0 +1,25 @@
+name = "dn-receipt-portal"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+# Pages (index.html, hr.html) are served from /public. /api/* goes to the worker.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "dn-receipts"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "dn-receipts"
+
+[vars]
+# HR users who can see all receipts and run the matching (comma separated)
+HR_EMAILS = "hairul.izwan@telecontinent.com.my"
+# Access application protects only the path hr.html. Values from Zero Trust > Access > Applications > (this app) > Overview
+# Also add a Secret named SESSION_SECRET in the worker settings (see README step 5).
+ACCESS_TEAM_DOMAIN = "REPLACE.cloudflareaccess.com"
+ACCESS_AUD = "REPLACE_WITH_APPLICATION_AUDIENCE_TAG"

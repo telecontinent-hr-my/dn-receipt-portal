@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DN Receipt Submission</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div><h1>DN Receipt Submission</h1><div class="sub">Telecontinent Sdn Bhd · Human Resources &amp; Administration</div></div>
+  <div class="sub row"><span id="who"></span><button id="out" class="small ghost hidden" type="button" style="background:transparent;color:#fff;border-color:#fff">Sign out</button></div>
+</div></header>
+
+<main class="wrap">
+  <div id="gate" class="msg info">Loading…</div>
+
+  <section id="login" class="card hidden" style="max-width:420px;margin:24px auto">
+    <h2>Sign in</h2>
+    <p class="muted" style="margin-top:-6px">Use your Telecontinent staff ID and the 6-digit PIN from HR.</p>
+    <form id="lf" novalidate>
+      <label for="l_tc">Staff ID</label><input id="l_tc" placeholder="e.g. TC4736" autocomplete="username" autocapitalize="characters">
+      <label for="l_pin" style="margin-top:10px">PIN</label><input id="l_pin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password">
+      <div id="lmsg" class="msg hidden"></div>
+      <button type="submit" style="margin-top:12px;width:100%">Sign in</button>
+    </form>
+    <p class="muted" style="font-size:13px">Forgot your PIN? Ask HR at hr@telecontinent.com.my to reset it.</p>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="card">
+      <h2>Submit a receipt</h2>
+      <p class="muted" style="margin-top:-6px">One receipt per submission. Use the claim month and category of your claim in the DN system.</p>
+      <form id="f" novalidate>
+        <div class="grid">
+          <div><label class="req" for="claim_month">Claim month</label><select id="claim_month" name="claim_month"></select></div>
+          <div><label class="req" for="category">Claim category</label><select id="category" name="category"><option value="">Choose…</option></select></div>
+          <div><label class="req" for="expense_date">Date on receipt</label><input type="date" id="expense_date" name="expense_date"></div>
+          <div><label class="req" for="amount">Receipt amount (RM)</label><input id="amount" name="amount" inputmode="decimal" placeholder="e.g. 45.60" autocomplete="off"></div>
+          <div><label for="merchant">Shop / clinic / provider</label><input id="merchant" name="merchant" maxlength="120"></div>
+          <div><label for="receipt_no">Receipt or invoice no.</label><input id="receipt_no" name="receipt_no" maxlength="60"></div>
+        </div>
+        <div style="margin-top:12px"><label for="remark">Remark</label><textarea id="remark" name="remark" maxlength="300" placeholder="Optional, e.g. client site visit Shah Alam"></textarea></div>
+        <div style="margin-top:12px"><label class="req" for="file">Receipt photo or PDF</label><input type="file" id="file" name="file" accept="image/*,application/pdf"></div>
+        <div id="fmsg" class="msg hidden"></div>
+        <div class="row" style="margin-top:12px"><button id="sub" type="submit">Submit receipt</button></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="row"><h2 style="margin:0">My receipts</h2>
+        <select id="filter" class="right" style="width:auto"><option value="">All months</option></select></div>
+      <div id="mine" class="list" style="margin-top:10px"></div>
+    </div>
+  </section>
+</main>
+
+<script src="/common.js"></script>
+<script>
+let ME = null, MINE = [];
+
+async function init() {
+  try { ME = await api('/api/me'); }
+  catch (e) {
+    if (e.status === 401) { $('#gate').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#l_tc').focus(); return; }
+    showMsg($('#gate'), 'err', e.message); return;
+  }
+  if (!ME.staff) {
+    if (ME.isHR) { location.href = '/hr.html'; return; }
+    showMsg($('#gate'), 'err', 'Your staff record is not active. Please contact HR at hr@telecontinent.com.my.');
+    return;
+  }
+  $('#gate').classList.add('hidden'); $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#out').classList.remove('hidden');
+  $('#who').textContent = `${ME.staff.name} (${ME.staff.tc_id})`;
+  for (const m of recentMonths(12)) {
+    $('#claim_month').add(new Option(monthLabel(m), m));
+    $('#filter').add(new Option(monthLabel(m), m));
+  }
+  for (const c of ME.categories) $('#category').add(new Option(c, c));
+  $('#expense_date').max = todayMY();
+  $('#filter').onchange = render;
+  await load();
+}
+
+async function load() {
+  MINE = (await api('/api/receipts')).receipts;
+  render();
+}
+
+function render() {
+  const f = $('#filter').value;
+  const rows = MINE.filter(r => !f || r.claim_month === f);
+  if (!rows.length) { $('#mine').innerHTML = '<p class="muted">No receipts yet.</p>'; return; }
+  $('#mine').innerHTML = rows.map(r => `
+    <div class="item">
+      <div>
+        <div><strong>${esc(r.category)}</strong> · RM ${rm(r.amount_sen)} <span class="chip ${r.status}">${r.status === 'Submitted' ? 'Waiting for HR' : r.status}</span></div>
+        <div class="muted">Claim month ${monthLabel(r.claim_month)} · Receipt date ${fmtDate(r.expense_date)}${r.merchant ? ' · ' + esc(r.merchant) : ''}</div>
+        ${r.hr_note ? `<div><strong>HR note:</strong> ${esc(r.hr_note)}</div>` : ''}
+      </div>
+      <div class="row">
+        <button class="small ghost" data-view="${r.id}" data-t="${esc(r.file_name)}">View</button>
+        ${r.status === 'Submitted' ? `<button class="small danger" data-wd="${r.id}">Withdraw</button>` : ''}
+      </div>
+    </div>`).join('');
+  $$('[data-view]').forEach(b => b.onclick = () => openFile(b.dataset.view, b.dataset.t));
+  $$('[data-wd]').forEach(b => b.onclick = async () => {
+    if (!confirm('Withdraw this receipt? You can submit it again later.')) return;
+    try { await api(`/api/receipts/${b.dataset.wd}/withdraw`, { method: 'POST' }); await load(); }
+    catch (e) { alert(e.message); }
+  });
+}
+
+$('#f').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const msg = $('#fmsg'); msg.classList.add('hidden');
+  const fd = new FormData($('#f'));
+  const miss = [];
+  if (!fd.get('category')) miss.push('claim category');
+  if (!fd.get('expense_date')) miss.push('date on receipt');
+  if (!String(fd.get('amount')).trim()) miss.push('receipt amount');
+  const file = $('#file').files[0];
+  if (!file) miss.push('receipt photo or PDF');
+  if (miss.length) { showMsg(msg, 'err', 'Please fill in: ' + miss.join(', ') + '.'); return; }
+  fd.set('file', await shrinkImage(file));
+  $('#sub').disabled = true; $('#sub').textContent = 'Uploading…';
+  try {
+    await api('/api/receipts', { method: 'POST', body: fd });
+    showMsg(msg, 'ok', `Receipt submitted: ${fd.get('category')}, RM ${Number(String(fd.get('amount')).replace(/,/g, '')).toFixed(2)}. You can submit the next one.`);
+    ['expense_date', 'amount', 'merchant', 'receipt_no', 'remark', 'file'].forEach(k => $('#' + k).value = '');
+    await load();
+  } catch (e) { showMsg(msg, 'err', e.message); }
+  finally { $('#sub').disabled = false; $('#sub').textContent = 'Submit receipt'; }
+};
+
+$('#lf').onsubmit = async (ev) => {
+  ev.preventDefault();
+  try {
+    await api('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tc_id: $('#l_tc').value, pin: $('#l_pin').value }) });
+    $('#l_pin').value = ''; init();
+  } catch (e) { showMsg($('#lmsg'), 'err', e.message); }
+};
+$('#out').onclick = async () => { await api('/api/logout', { method: 'POST' }); location.reload(); };
+
+init();
+</script>
+</body>
+</html>
