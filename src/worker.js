@@ -21,6 +21,9 @@ export default {
     // Staff worker sends HR pages to the HR worker; HR worker opens on the HR page.
     if (env.ROLE === 'staff' && /^\/hr(\.html)?$/.test(url.pathname) && env.HR_URL) return Response.redirect(env.HR_URL, 302);
     if (env.ROLE === 'hr' && url.pathname === '/') return Response.redirect(new URL('/hr.html', url).toString(), 302);
+    // Demo pages (fake data in the browser, no server data). Staff worker only.
+    if (env.ROLE !== 'hr' && /^\/demo\/?$/.test(url.pathname)) return env.ASSETS.fetch(new Request(new URL('/', url), request));
+    if (env.ROLE !== 'hr' && /^\/demo\/hr(\.html)?$/.test(url.pathname)) return env.ASSETS.fetch(new Request(new URL('/hr', url), request));
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     try {
       if (url.pathname === '/api/login' && request.method === 'POST') return await login(request, env);

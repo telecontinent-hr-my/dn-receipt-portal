@@ -47,8 +47,9 @@ function openFile(id, title) {
     dlg.addEventListener('close', () => { dlg.querySelector('.body').innerHTML = ''; });
   }
   dlg.querySelector('.t').textContent = title || 'Receipt';
-  dlg.querySelector('a').href = `/api/file/${id}`;
-  dlg.querySelector('.body').innerHTML = `<iframe src="/api/file/${encodeURIComponent(id)}" title="Receipt"></iframe>`;
+  const src = window.DEMO ? window.demoFileUrl(id) : `/api/file/${encodeURIComponent(id)}`;
+  dlg.querySelector('a').href = src;
+  dlg.querySelector('.body').innerHTML = `<iframe src="${src}" title="Receipt"></iframe>`;
   dlg.showModal();
 }
 
