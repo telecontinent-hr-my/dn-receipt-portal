@@ -28,7 +28,7 @@ binding = "AI"
 
 [vars]
 ROLE = "staff"
-HR_URL = "https://dn-receipt-hr.hairul-izwan.workers.dev/hr.html"
+HR_URL = "https://dn-receipt-hr.tc-hr.workers.dev/hr.html"
 
 # ---------------- HR worker ----------------
 [env.hr]
@@ -53,7 +53,7 @@ binding = "AI"
 
 [env.hr.vars]
 ROLE = "hr"
-STAFF_URL = "https://dn-receipt-portal.hairul-izwan.workers.dev/"
+STAFF_URL = "https://dn-receipt-portal.tc-hr.workers.dev/"
 # HR users who can see all receipts and run the matching (comma separated). Must also be allowed in the Access policy.
 HR_EMAILS = "hairul.izwan@telecontinent.com.my,farah.fauziah@telecontinent.com.my,farahana.khairudin@telecontinent.com.my,sharon.sunita@telecontinent.com.my,waionn@telecontinent.com.my,anisah.zaki@telecontinent.com.my"
 # Zero Trust > Access settings (team domain) and Access > Applications > (HR app) > Overview (AUD tag)
